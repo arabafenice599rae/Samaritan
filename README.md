@@ -1,10 +1,10 @@
 
 
-# Samaritan Lite 
-
 <p align="center">
-  <img src="logo.svg" alt="Samaritan logo" width="160">
+  <img src="./logo.svg" alt="Samaritan Logo" width="220" />
 </p>
+
+<h1 align="center">Samaritan · Lite Node</h1>
 
 Samaritan Lite is a **minimal, demonstrative implementation** of the Samaritan 1.5 architecture:
 
