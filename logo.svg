@@ -5,95 +5,61 @@
   height="512"
   viewBox="0 0 512 512"
   role="img"
-  aria-labelledby="title desc"
+  aria-label="Samaritan distributed brain logo"
 >
-  <title id="title">Samaritan Distributed Brain</title>
-  <desc id="desc">
-    Cyber brain with glowing neural nodes and connections, representing the Samaritan distributed AI.
-  </desc>
-
-  <!-- ====== DEFINIZIONI GRADIENTI E FILTRI ====== -->
+  <!-- SFONDO -->
   <defs>
-    <!-- Sfondo profondo -->
-    <radialGradient id="deepSpace" cx="50%" cy="45%" r="60%">
-      <stop offset="0%" stop-color="#3de3ff" stop-opacity="0.12"/>
-      <stop offset="30%" stop-color="#102a43" stop-opacity="0.6"/>
+    <radialGradient id="bg" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#38e8ff" stop-opacity="0.1"/>
+      <stop offset="35%" stop-color="#0f3550" stop-opacity="0.7"/>
       <stop offset="100%" stop-color="#020617" stop-opacity="1"/>
     </radialGradient>
 
-    <!-- Vignettatura -->
     <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
       <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
       <stop offset="70%" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.75"/>
     </radialGradient>
 
-    <!-- Gradiente lineare ciano/blu -->
-    <linearGradient id="cyberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#8ff4ff"/>
       <stop offset="40%" stop-color="#3de3ff"/>
       <stop offset="80%" stop-color="#00b8e6"/>
       <stop offset="100%" stop-color="#0077a3"/>
     </linearGradient>
 
-    <!-- Gradiente energia -->
-    <linearGradient id="energyGrad" x1="100%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#00d9ff"/>
-      <stop offset="50%" stop-color="#00a8cc"/>
-      <stop offset="100%" stop-color="#0088aa"/>
-    </linearGradient>
-
-    <!-- Gradiente nodi core -->
-    <radialGradient id="coreGrad" cx="50%" cy="50%" r="50%">
+    <radialGradient id="nodeGrad" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="#ffffff"/>
       <stop offset="40%" stop-color="#8ff4ff"/>
       <stop offset="100%" stop-color="#00b8e6"/>
     </radialGradient>
 
-    <!-- Glow principale -->
-    <filter id="volumetricGlow" x="-80%" y="-80%" width="260%" height="260%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="8" result="blur1"/>
-      <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur2"/>
-      <feFlood flood-color="#3de3ff" flood-opacity="0.5" result="color1"/>
-      <feComposite in="color1" in2="blur1" operator="in" result="glow1"/>
-      <feFlood flood-color="#00d9ff" flood-opacity="0.9" result="color2"/>
-      <feComposite in="color2" in2="blur2" operator="in" result="glow2"/>
+    <filter id="glowStrong" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="7" result="b1"/>
+      <feFlood flood-color="#38e8ff" flood-opacity="0.9" result="c1"/>
+      <feComposite in="c1" in2="b1" operator="in" result="g1"/>
       <feMerge>
-        <feMergeNode in="glow1"/>
-        <feMergeNode in="glow2"/>
+        <feMergeNode in="g1"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
 
-    <!-- Glow nodi -->
-    <filter id="nodeGlow" x="-200%" y="-200%" width="500%" height="500%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="blur"/>
-      <feFlood flood-color="#8ff4ff" flood-opacity="1"/>
-      <feComposite in2="blur" operator="in" result="glow"/>
+    <filter id="glowSoft" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="b1"/>
+      <feFlood flood-color="#38e8ff" flood-opacity="0.7" result="c1"/>
+      <feComposite in="c1" in2="b1" operator="in" result="g1"/>
       <feMerge>
-        <feMergeNode in="glow"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-
-    <!-- Glow connessioni -->
-    <filter id="pathGlow" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur"/>
-      <feFlood flood-color="#00d9ff" flood-opacity="0.8"/>
-      <feComposite in2="blur" operator="in" result="glow"/>
-      <feMerge>
-        <feMergeNode in="glow"/>
+        <feMergeNode in="g1"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
 
-  <!-- ====== SFONDO ====== -->
-  <rect width="512" height="512" fill="url(#deepSpace)"/>
+  <rect width="512" height="512" fill="url(#bg)"/>
   <rect width="512" height="512" fill="url(#vignette)"/>
 
-  <!-- Griglia tech -->
-  <g opacity="0.08" stroke="#3de3ff" stroke-width="0.5">
+  <!-- griglia tech -->
+  <g opacity="0.1" stroke="#38e8ff" stroke-width="0.5">
     <line x1="0" y1="128" x2="512" y2="128"/>
     <line x1="0" y1="256" x2="512" y2="256"/>
     <line x1="0" y1="384" x2="512" y2="384"/>
@@ -102,188 +68,112 @@
     <line x1="384" y1="0" x2="384" y2="512"/>
   </g>
 
-  <!-- Cerchi HUD -->
-  <g opacity="0.12" fill="none" stroke="#3de3ff">
-    <circle cx="256" cy="220" r="160" stroke-width="1"/>
-    <circle cx="256" cy="220" r="200" stroke-width="0.7"/>
-    <circle cx="256" cy="220" r="245" stroke-width="0.5"/>
-  </g>
-
-  <!-- ====== CERVELLO ====== -->
+  <!-- CERVELLO -->
   <g transform="translate(256,220)">
-    <!-- Emisfero sinistro -->
+    <!-- emisfero sinistro -->
     <path
-      d="M -8 -150
-         C -52 -150 -80 -130 -95 -100
-         C -110 -90 -120 -74 -126 -55
-         C -142 -40 -154 -18 -158 8
-         C -160 40 -152 70 -140 92
-         C -130 112 -116 130 -98 142
-         C -90 162 -72 180 -48 190
-         C -34 204 -18 210 -8 210
+      d="M -6 -150
+         C -52 -150 -82 -130 -96 -100
+         C -112 -90 -122 -72 -128 -54
+         C -144 -40 -156 -18 -160 8
+         C -162 42 -154 72 -140 96
+         C -130 114 -116 132 -98 144
+         C -86 166 -70 182 -46 192
+         C -32 206 -16 212 -6 212
          Z"
       fill="none"
-      stroke="url(#cyberGrad)"
+      stroke="url(#lineGrad)"
       stroke-width="4.5"
       stroke-linecap="round"
       stroke-linejoin="round"
-      filter="url(#volumetricGlow)"
+      filter="url(#glowStrong)"
     />
-
-    <!-- Emisfero destro -->
+    <!-- emisfero destro -->
     <path
-      d="M 8 -150
-         C 52 -150 80 -130 95 -100
-         C 110 -90 120 -74 126 -55
-         C 142 -40 154 -18 158 8
-         C 160 40 152 70 140 92
-         C 130 112 116 130 98 142
-         C 90 162 72 180 48 190
-         C 34 204 18 210 8 210
+      d="M 6 -150
+         C 52 -150 82 -130 96 -100
+         C 112 -90 122 -72 128 -54
+         C 144 -40 156 -18 160 8
+         C 162 42 154 72 140 96
+         C 130 114 116 132 98 144
+         C 86 166 70 182 46 192
+         C 32 206 16 212 6 212
          Z"
       fill="none"
-      stroke="url(#cyberGrad)"
+      stroke="url(#lineGrad)"
       stroke-width="4.5"
       stroke-linecap="round"
       stroke-linejoin="round"
-      filter="url(#volumetricGlow)"
+      filter="url(#glowStrong)"
     />
 
-    <!-- Fessura centrale -->
+    <!-- fessura centrale -->
     <path
       d="M 0 -145 Q 0 -60 0 40 Q 0 120 0 205"
       fill="none"
       stroke="#8ff4ff"
       stroke-width="2"
       stroke-linecap="round"
-      opacity="0.5"
+      opacity="0.6"
+      filter="url(#glowSoft)"
     />
 
-    <!-- Circonvoluzioni interne (sinistra) -->
-    <g stroke-linecap="round" opacity="0.6">
-      <path
-        d="M -96 -110 Q -112 -80 -120 -40"
-        fill="none"
-        stroke="#3de3ff"
-        stroke-width="2.3"
-      />
-      <path
-        d="M -126 -15 Q -136 18 -138 52"
-        fill="none"
-        stroke="#00d9ff"
-        stroke-width="2"
-      />
-      <path
-        d="M -132 78 Q -120 108 -100 128"
-        fill="none"
-        stroke="#3de3ff"
-        stroke-width="2"
-      />
+    <!-- circonvoluzioni schematiche -->
+    <g stroke-linecap="round" opacity="0.55">
+      <!-- sinistra -->
+      <path d="M -98 -110 Q -114 -78 -122 -40" fill="none" stroke="#38e8ff" stroke-width="2.3"/>
+      <path d="M -128 -12 Q -138 20 -140 54"   fill="none" stroke="#00d0ff" stroke-width="2.0"/>
+      <path d="M -134 80 Q -122 108 -104 128"  fill="none" stroke="#38e8ff" stroke-width="2.0"/>
+      <!-- destra -->
+      <path d="M 98 -110 Q 114 -78 122 -40"    fill="none" stroke="#38e8ff" stroke-width="2.3"/>
+      <path d="M 128 -12 Q 138 20 140 54"      fill="none" stroke="#00d0ff" stroke-width="2.0"/>
+      <path d="M 134 80 Q 122 108 104 128"     fill="none" stroke="#38e8ff" stroke-width="2.0"/>
     </g>
 
-    <!-- Circonvoluzioni interne (destra) -->
-    <g stroke-linecap="round" opacity="0.6">
-      <path
-        d="M 96 -110 Q 112 -80 120 -40"
-        fill="none"
-        stroke="#3de3ff"
-        stroke-width="2.3"
-      />
-      <path
-        d="M 126 -15 Q 136 18 138 52"
-        fill="none"
-        stroke="#00d9ff"
-        stroke-width="2"
-      />
-      <path
-        d="M 132 78 Q 120 108 100 128"
-        fill="none"
-        stroke="#3de3ff"
-        stroke-width="2"
-      />
-    </g>
-
-    <!-- Nodo core centrale -->
-    <g filter="url(#nodeGlow)">
-      <circle cx="0" cy="0" r="18" fill="url(#coreGrad)"/>
+    <!-- nodo core -->
+    <g filter="url(#glowStrong)">
+      <circle cx="0" cy="0" r="18" fill="url(#nodeGrad)"/>
       <circle cx="0" cy="0" r="10" fill="#ffffff" opacity="0.95"/>
-      <circle cx="0" cy="0" r="5" fill="#8ff4ff"/>
+      <circle cx="0" cy="0" r="4.5" fill="#8ff4ff"/>
     </g>
 
-    <!-- Nodi primari (ottagono) + connessioni -->
-    <g filter="url(#pathGlow)">
-      <!-- Connessioni -->
-      <line x1="0" y1="0" x2="0" y2="-78" stroke="url(#energyGrad)" stroke-width="4"/>
-      <line x1="0" y1="0" x2="55" y2="-55" stroke="url(#energyGrad)" stroke-width="4"/>
-      <line x1="0" y1="0" x2="78" y2="0" stroke="url(#energyGrad)" stroke-width="4"/>
-      <line x1="0" y1="0" x2="55" y2="55" stroke="url(#energyGrad)" stroke-width="4"/>
-      <line x1="0" y1="0" x2="0" y2="78" stroke="url(#energyGrad)" stroke-width="4"/>
-      <line x1="0" y1="0" x2="-55" y2="55" stroke="url(#energyGrad)" stroke-width="4"/>
-      <line x1="0" y1="0" x2="-78" y2="0" stroke="url(#energyGrad)" stroke-width="4"/>
-      <line x1="0" y1="0" x2="-55" y2="-55" stroke="url(#energyGrad)" stroke-width="4"/>
+    <!-- nodi primari + connessioni -->
+    <g filter="url(#glowSoft)">
+      <!-- connessioni -->
+      <g stroke="url(#lineGrad)" stroke-width="3.5">
+        <line x1="0" y1="0" x2="0" y2="-78"/>
+        <line x1="0" y1="0" x2="55" y2="-55"/>
+        <line x1="0" y1="0" x2="78" y2="0"/>
+        <line x1="0" y1="0" x2="55" y2="55"/>
+        <line x1="0" y1="0" x2="0" y2="78"/>
+        <line x1="0" y1="0" x2="-55" y2="55"/>
+        <line x1="0" y1="0" x2="-78" y2="0"/>
+        <line x1="0" y1="0" x2="-55" y2="-55"/>
+      </g>
 
-      <!-- Nodi -->
-      <g fill="url(#coreGrad)" stroke="#0f172a" stroke-width="0.5">
-        <circle cx="0" cy="-78" r="13"/>
-        <circle cx="55" cy="-55" r="13"/>
-        <circle cx="78" cy="0" r="13"/>
-        <circle cx="55" cy="55" r="13"/>
-        <circle cx="0" cy="78" r="13"/>
-        <circle cx="-55" cy="55" r="13"/>
-        <circle cx="-78" cy="0" r="13"/>
-        <circle cx="-55" cy="-55" r="13"/>
+      <!-- nodi -->
+      <g fill="url(#nodeGrad)" stroke="#020617" stroke-width="0.6">
+        <circle cx="0" cy="-78" r="12"/>
+        <circle cx="55" cy="-55" r="12"/>
+        <circle cx="78" cy="0" r="12"/>
+        <circle cx="55" cy="55" r="12"/>
+        <circle cx="0" cy="78" r="12"/>
+        <circle cx="-55" cy="55" r="12"/>
+        <circle cx="-78" cy="0" r="12"/>
+        <circle cx="-55" cy="-55" r="12"/>
       </g>
     </g>
 
-    <!-- Nodi secondari esterni -->
-    <g opacity="0.9">
-      <g fill="#00d9ff" filter="url(#nodeGlow)">
-        <circle cx="100" cy="-75" r="7"/>
-        <circle cx="115" cy="-20" r="7"/>
-        <circle cx="115" cy="20" r="7"/>
-        <circle cx="100" cy="75" r="7"/>
-        <circle cx="-100" cy="-75" r="7"/>
-        <circle cx="-115" cy="-20" r="7"/>
-        <circle cx="-115" cy="20" r="7"/>
-        <circle cx="-100" cy="75" r="7"/>
-      </g>
+    <!-- nodi secondari -->
+    <g fill="#00d9ff" filter="url(#glowSoft)" opacity="0.9">
+      <circle cx="105" cy="-72" r="7"/>
+      <circle cx="118" cy="-18" r="7"/>
+      <circle cx="118" cy="18" r="7"/>
+      <circle cx="105" cy="72" r="7"/>
+      <circle cx="-105" cy="-72" r="7"/>
+      <circle cx="-118" cy="-18" r="7"/>
+      <circle cx="-118" cy="18" r="7"/>
+      <circle cx="-105" cy="72" r="7"/>
     </g>
-  </g>
-
-  <!-- ====== ETICHETTA SAMARITAN ====== -->
-  <g transform="translate(0, 400)">
-    <rect
-      x="128"
-      y="40"
-      width="256"
-      height="54"
-      rx="16"
-      fill="#020617"
-      opacity="0.92"
-      stroke="url(#cyberGrad)"
-      stroke-width="2"
-    />
-    <text
-      x="256"
-      y="74"
-      text-anchor="middle"
-      font-family="system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif"
-      font-size="20"
-      letter-spacing="4"
-      fill="#e5e7eb"
-    >
-      SAMARITAN
-    </text>
-    <text
-      x="256"
-      y="94"
-      text-anchor="middle"
-      font-family="system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif"
-      font-size="11"
-      letter-spacing="3"
-      fill="#38bdf8"
-    >
-      DISTRIBUTED BRAIN
-    </text>
   </g>
 </svg>
