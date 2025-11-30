@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="512"
+    height="512"
+    viewBox="0 0 512 512"
+>
+  <defs>
+    <!-- Bagliore azzurro centrale -->
+    <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1fb3ff" stop-opacity="0.9"/>
+      <stop offset="60%" stop-color="#0b2840" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#050b14" stop-opacity="1"/>
+    </radialGradient>
+
+    <!-- Colore principale Samaritan -->
+    <linearGradient id="primaryStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4fd2ff"/>
+      <stop offset="100%" stop-color="#0ac0ff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Sfondo con bagliore -->
+  <rect
+      x="0"
+      y="0"
+      width="512"
+      height="512"
+      fill="url(#bgGlow)"
+  />
+
+  <!-- “Cervello” stilizzato: due emisferi -->
+  <g transform="translate(96,72)">
+    <!-- Contorno emisferi -->
+    <path
+      d="
+        M160 0
+        C120 0 96 24 96 64
+        C64 64 48 88 48 120
+        C24 136 16 160 16 184
+        C16 224 32 248 48 264
+        C48 304 72 328 112 328
+        C128 352 144 368 160 368
+        C176 368 192 352 208 328
+        C248 328 272 304 272 264
+        C288 248 304 224 304 184
+        C304 160 296 136 272 120
+        C272 88 256 64 224 64
+        C224 24 200 0 160 0
+        Z"
+      fill="none"
+      stroke="url(#primaryStroke)"
+      stroke-width="10"
+      stroke-linejoin="round"
+    />
+
+    <!-- Linea centrale che divide i due emisferi -->
+    <line
+      x1="160"
+      y1="20"
+      x2="160"
+      y2="348"
+      stroke="url(#primaryStroke)"
+      stroke-width="6"
+      stroke-linecap="round"
+    />
+
+    <!-- Rete neurale / albero interno -->
+    <!-- Trunk -->
+    <line
+      x1="160"
+      y1="220"
+      x2="160"
+      y2="120"
+      stroke="#4fd2ff"
+      stroke-width="6"
+      stroke-linecap="round"
+    />
+
+    <!-- Ramo sinistro alto -->
+    <line
+      x1="160"
+      y1="170"
+      x2="112"
+      y2="130"
+      stroke="#4fd2ff"
+      stroke-width="6"
+      stroke-linecap="round"
+    />
+
+    <!-- Ramo destro alto -->
+    <line
+      x1="160"
+      y1="150"
+      x2="216"
+      y2="112"
+      stroke="#4fd2ff"
+      stroke-width="6"
+      stroke-linecap="round"
+    />
+
+    <!-- Ramo sinistro basso -->
+    <line
+      x1="160"
+      y1="230"
+      x2="112"
+      y2="260"
+      stroke="#4fd2ff"
+      stroke-width="6"
+      stroke-linecap="round"
+    />
+
+    <!-- Ramo destro basso -->
+    <line
+      x1="160"
+      y1="240"
+      x2="216"
+      y2="280"
+      stroke="#4fd2ff"
+      stroke-width="6"
+      stroke-linecap="round"
+    />
+
+    <!-- Nodi / sinapsi -->
+    <circle cx="160" cy="120" r="10" fill="#0ac0ff"/>
+    <circle cx="112" cy="130" r="10" fill="#0ac0ff"/>
+    <circle cx="216" cy="112" r="10" fill="#0ac0ff"/>
+    <circle cx="112" cy="260" r="10" fill="#0ac0ff"/>
+    <circle cx="216" cy="280" r="10" fill="#0ac0ff"/>
+    <circle cx="160" cy="220" r="10" fill="#0ac0ff"/>
+  </g>
+
+  <!-- Scritta opzionale "SAMARITAN" sotto il logo -->
+  <text
+    x="50%"
+    y="480"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif"
+    font-size="32"
+    fill="#5ed8ff"
+    letter-spacing="4"
+  >
+    SAMARITAN
+  </text>
+</svg>
