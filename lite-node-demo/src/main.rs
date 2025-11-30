@@ -1,9 +1,10 @@
 // lite-node-demo/src/main.rs
 //
 // Demo minimale per Samaritan Lite:
-// - usa SimpleNode (NeuralEngine + PolicyCore)
+// - usa SimpleNode (NeuralEngine + PolicyCore + MetaObserverLite)
 // - legge input da stdin
 // - stampa output + decisione policy
+// - comando speciale: /stats per vedere le statistiche
 
 use std::io::{self, Write};
 
@@ -18,7 +19,11 @@ fn main() -> Result<()> {
     let mut node = SimpleNode::new(false);
 
     println!("=== Samaritan Lite Node Demo ===");
-    println!("Digita un messaggio e premi Invio. Digita \"/quit\" per uscire.\n");
+    println!("Comandi:");
+    println!("  - digita un messaggio normale per parlare con il nodo");
+    println!("  - digita \"/stats\" per vedere le statistiche di policy");
+    println!("  - digita \"/reset_stats\" per azzerare le statistiche");
+    println!("  - digita \"/quit\" per uscire\n");
 
     let stdin = io::stdin();
     let mut stdout = io::stdout();
@@ -36,19 +41,46 @@ fn main() -> Result<()> {
         }
 
         let trimmed = buffer.trim();
-        if trimmed.eq_ignore_ascii_case("/quit") {
-            println!("Uscita richiesta. Ciao!");
-            break;
-        }
 
         if trimmed.is_empty() {
             continue;
         }
 
-        // 1) Lascia che sia il SimpleNode a gestire il turno
+        if trimmed.eq_ignore_ascii_case("/quit") {
+            println!("Uscita richiesta. Ciao!");
+            break;
+        }
+
+        if trimmed.eq_ignore_ascii_case("/stats") {
+            let snapshot = node.meta().snapshot();
+            println!("--- Statistiche MetaObserverLite ---");
+            println!("  Turni totali:   {}", snapshot.total_turns);
+            println!("  Allow:          {} ({:.1}%)",
+                snapshot.allow_count,
+                snapshot.allow_ratio_percent()
+            );
+            println!("  SafeRespond:    {} ({:.1}%)",
+                snapshot.safe_respond_count,
+                snapshot.safe_respond_ratio_percent()
+            );
+            println!("  Refuse:         {} ({:.1}%)",
+                snapshot.refuse_count,
+                snapshot.refuse_ratio_percent()
+            );
+            println!();
+            continue;
+        }
+
+        if trimmed.eq_ignore_ascii_case("/reset_stats") {
+            node.reset_stats();
+            println!("Statistiche azzerate.\n");
+            continue;
+        }
+
+        // Turno normale: lascia che sia il SimpleNode a gestire input + policy
         let (model_output, decision) = node.handle_turn(trimmed);
 
-        // 2) Stampa in base alla decisione della policy
+        // Stampa in base alla decisione della policy
         match decision.kind {
             PolicyDecisionKind::Allow => {
                 println!("samaritan> {model_output}");
