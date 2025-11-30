@@ -4,3 +4,6 @@ members = [
     "samaritan-core-lite",
     "lite-node-demo",
 ]
+
+[workspace.dependencies]
+regex = "1.10"
