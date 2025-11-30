@@ -1,113 +1,88 @@
-// samaritan-core-lite/src/meta_observer.rs
-//
-// MetaObserverLite: raccoglie statistiche semplici sulle decisioni del PolicyCore.
+//! MetaObserverLite – telemetria minima per Samaritan Lite.
+//!
+//! In questa versione tiene solo un contatore dei messaggi
+//! e quante volte è stato richiesto un `SafeRespond` o un `Refuse`
+//! dal `PolicyCore`.
 
-use crate::PolicyDecision;
-use crate::PolicyDecisionKind;
+use crate::policy_core::{PolicyDecision, PolicyDecisionKind};
 
-/// Snapshot immutabile dello stato del `MetaObserverLite`.
-///
-/// Questo tipo viene usato per leggere, in modo sicuro, le statistiche
-/// correnti senza esporre i campi mutabili interni del meta-observer.
-#[derive(Debug, Clone, Copy)]
-pub struct MetaSnapshot {
-    /// Numero totale di turni gestiti dal nodo.
-    pub total_turns: u64,
-    /// Numero di decisioni `Allow`.
-    pub allow_count: u64,
-    /// Numero di decisioni `SafeRespond`.
+/// Statistiche minime raccolte dal MetaObserverLite.
+#[derive(Debug, Default, Clone)]
+pub struct MetaStats {
+    /// Numero totale di richieste elaborate.
+    pub total_requests: u64,
+    /// Quante volte la policy ha chiesto una risposta "safe".
     pub safe_respond_count: u64,
-    /// Numero di decisioni `Refuse`.
+    /// Quante volte la policy ha rifiutato la risposta.
     pub refuse_count: u64,
 }
 
-impl MetaSnapshot {
-    /// Restituisce la percentuale di turni con decisione `Allow` (0.0–100.0).
-    pub fn allow_ratio_percent(&self) -> f64 {
-        self.ratio_percent(self.allow_count)
-    }
-
-    /// Restituisce la percentuale di turni con decisione `SafeRespond` (0.0–100.0).
-    pub fn safe_respond_ratio_percent(&self) -> f64 {
-        self.ratio_percent(self.safe_respond_count)
-    }
-
-    /// Restituisce la percentuale di turni con decisione `Refuse` (0.0–100.0).
-    pub fn refuse_ratio_percent(&self) -> f64 {
-        self.ratio_percent(self.refuse_count)
-    }
-
-    fn ratio_percent(&self, count: u64) -> f64 {
-        if self.total_turns == 0 {
-            0.0
-        } else {
-            (count as f64 / self.total_turns as f64) * 100.0
-        }
-    }
-}
-
-/// Meta-observer minimale per Samaritan Lite.
-///
-/// Questo componente:
-/// - conta quanti turni totali sono stati gestiti,
-/// - conta quante volte il PolicyCore ha risposto con:
-///   - `Allow`
-///   - `SafeRespond`
-///   - `Refuse`
-///
-/// Non fa nulla di "intelligente": è solo un contatore robusto e semplice,
-/// utile per debugging, metriche base o comandi come `/stats` nella CLI.
+/// Osservatore minimale che aggiorna solo qualche contatore.
 #[derive(Debug, Default)]
 pub struct MetaObserverLite {
-    total_turns: u64,
-    allow_count: u64,
-    safe_respond_count: u64,
-    refuse_count: u64,
+    stats: MetaStats,
 }
 
 impl MetaObserverLite {
     /// Crea un nuovo `MetaObserverLite` vuoto.
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            stats: MetaStats::default(),
+        }
     }
 
-    /// Registra una decisione di policy.
-    ///
-    /// Va chiamato ogni volta che il nodo ha gestito un turno e
-    /// ha ottenuto una `PolicyDecision` dal `PolicyCore`.
-    pub fn record_decision(&mut self, decision: &PolicyDecision) {
-        self.total_turns = self
-            .total_turns
-            .saturating_add(1);
+    /// Registra una decisione di policy e aggiorna le statistiche interne.
+    pub fn record_policy_decision(&mut self, decision: &PolicyDecision) {
+        self.stats.total_requests += 1;
 
         match decision.kind {
-            PolicyDecisionKind::Allow => {
-                self.allow_count = self.allow_count.saturating_add(1);
-            }
             PolicyDecisionKind::SafeRespond => {
-                self.safe_respond_count = self.safe_respond_count.saturating_add(1);
+                self.stats.safe_respond_count += 1;
             }
             PolicyDecisionKind::Refuse => {
-                self.refuse_count = self.refuse_count.saturating_add(1);
+                self.stats.refuse_count += 1;
+            }
+            PolicyDecisionKind::Allow => {
+                // niente da fare
             }
         }
     }
 
-    /// Restituisce uno snapshot immutabile delle statistiche correnti.
-    pub fn snapshot(&self) -> MetaSnapshot {
-        MetaSnapshot {
-            total_turns: self.total_turns,
-            allow_count: self.allow_count,
-            safe_respond_count: self.safe_respond_count,
-            refuse_count: self.refuse_count,
-        }
+    /// Restituisce una copia delle statistiche correnti.
+    pub fn stats(&self) -> MetaStats {
+        self.stats.clone()
     }
+}
 
-    /// Resetta tutte le statistiche a zero.
-    pub fn reset(&mut self) {
-        self.total_turns = 0;
-        self.allow_count = 0;
-        self.safe_respond_count = 0;
-        self.refuse_count = 0;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::policy_core::PolicyDecisionKind;
+
+    #[test]
+    fn stats_are_updated_correctly() {
+        let mut observer = MetaObserverLite::new();
+
+        let allow = PolicyDecision {
+            kind: PolicyDecisionKind::Allow,
+            reason: "ok".to_string(),
+        };
+        let safe = PolicyDecision {
+            kind: PolicyDecisionKind::SafeRespond,
+            reason: "safe".to_string(),
+        };
+        let refuse = PolicyDecision {
+            kind: PolicyDecisionKind::Refuse,
+            reason: "no".to_string(),
+        };
+
+        observer.record_policy_decision(&allow);
+        observer.record_policy_decision(&safe);
+        observer.record_policy_decision(&refuse);
+
+        let stats = observer.stats();
+        assert_eq!(stats.total_requests, 3);
+        assert_eq!(stats.safe_respond_count, 1);
+        assert_eq!(stats.refuse_count, 1);
     }
 }
