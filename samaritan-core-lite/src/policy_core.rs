@@ -97,7 +97,7 @@ impl PolicyCore {
             };
         }
 
-        // 4) Possibili dati sensibili (numero di carta molto grezzo)
+        // 4) Possibili dati sensibili (numero di carta molto grezzo).
         //    Se la regex dovesse mai essere invalida (bug nostro),
         //    semplicemente saltiamo questo controllo e non andiamo in panic.
         if let Ok(cc_regex) = Regex::new(r"\b(?:\d[ -]*?){13,16}\b") {
