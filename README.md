@@ -1,254 +1,229 @@
+
 <p align="center">
   <img src="./logo.svg" alt="Samaritan Logo" width="260" />
 </p>
+
+<h1 align="center">Samaritan Lite</h1>
+
+<p align="center">
+  <em>A tiny, opinionated playground for the Samaritan 1.5 distributed brain.</em>
+</p>
+
+<p align="center">
+  <a href="https://github.com/arabafenice599rae/Samaritan/actions/workflows/build.yml">
+    <img src="https://github.com/arabafenice599rae/Samaritan/actions/workflows/build.yml/badge.svg" alt="Build Status">
+  </a>
+</p>
+
+---
+
+## ✨ What is Samaritan Lite?
 
 Samaritan Lite is a **minimal, demonstrative implementation** of the Samaritan 1.5 architecture:
 
 > A distributed, privacy-by-design brain where every installation is a full node,  
 > not just a dumb client.
 
+This repo is **not** a full FL / DP production stack.  
+It’s a **small but realistic core** that shows:
 
-Samaritan Lite contains:
+- how a **neural engine** can be wrapped with
+- a **safety policy core**, plus
+- a tiny **meta-observer** that collects stats about the node.
 
-- a **core library** (`samaritan-core-lite`) with:
-  - a simplified neural engine (`NeuralEngineLite`),
-  - a safety policy module (`PolicyCore`),
-  - a lightweight meta-observer (`MetaObserverLite`);
-- a **demo binary** (`lite-node-demo`) to interact via terminal.
+Perfect for:
 
-It is meant as the **first concrete step** toward Samaritan 1.5 Heavy/Core,  
-but in a small, tested and educational form.
+- experimenting locally,
+- reviewing ideas for Samaritan 1.5,
+- or using as a skeleton for a richer node later.
 
 ---
 
-## Repository structure
+## 🧱 Repository layout
 
 ```text
 Samaritan/
-  Cargo.toml              # Rust workspace
-  README.md               # This file
+├─ Cargo.toml              # Workspace: samaritan-core-lite + lite-node-demo
+├─ logo.svg                # Transparent brain logo
+├─ README.md               # You are here
+│
+├─ samaritan-core-lite/    # Core library (NeuralEngineLite + PolicyCore + MetaObserverLite)
+│  ├─ Cargo.toml
+│  └─ src/
+│     ├─ lib.rs
+│     ├─ neural_engine_lite.rs
+│     ├─ policy_core.rs
+│     └─ meta_observer.rs
+│
+└─ lite-node-demo/         # Small CLI node using the core library
+   ├─ Cargo.toml
+   └─ src/
+      ├─ main.rs
+      ├─ simple_node.rs
+      ├─ policy_core.rs        # wired into the demo
+      └─ meta_observer_lite.rs
 
-  samaritan-core-lite/    # Core library (neural engine + policy + meta observer)
-    Cargo.toml
-    src/
-      lib.rs              # Exports public modules
-      policy_core.rs      # Safety policy (Allow / SafeRespond / Refuse)
-      neural_engine_lite.rs
-                          # "Fake LLM" engine but architecturally consistent
-      meta_observer.rs    # MetaObserverLite: basic stats over requests
-      # (future modules will live here)
-
-  lite-node-demo/         # Example binary
-    Cargo.toml
-    src/
-      main.rs             # CLI demo: read input, call core, print output
-
-Future modules (for Samaritan 1.5 Heavy/Core style architecture) will extend:
-	•	federated/ — federated learning, DP-SGD, secure aggregation,
-	•	net/ — networking + delta messages,
-	•	snapshot_store/ — model snapshots & rollback,
-	•	update_agent/ — signed binary updates,
-	•	meta_brain/ — ADR proposals, model slimming, etc.
-
-Samaritan Lite is the small, safe nucleus that can grow into that.
 
 ⸻
 
-What it actually does
+🚀 Quick start
 
-samaritan-core-lite
+Requirements: recent Rust toolchain (rustup + stable).
 
-The core library exposes three main components:
+Clone the repo:
+
+git clone https://github.com/arabafenice599rae/Samaritan.git
+cd Samaritan
+
+Build everything:
+
+cargo build
+
+Run the CLI demo node:
+
+cargo run -p lite-node-demo
+
+You’ll see a prompt like:
+
+=== Samaritan Lite Node Demo ===
+Commands:
+  - type a normal message to talk to the node
+  - type "/stats" to see MetaObserverLite statistics
+  - type "/reset_stats" to reset the statistics
+  - type "/quit" to exit
+
+Then:
+	•	type a normal message → the node runs NeuralEngineLite + PolicyCore,
+	•	type /stats → the node prints aggregated stats (turns, average length, etc.),
+	•	type /reset_stats → counters are cleared,
+	•	type /quit → exit.
 
 ⸻
 
-1. PolicyCore
-A simple but real safety policy module:
-	•	Analyzes both user input and model output.
-	•	Returns a PolicyDecision with:
-	•	Allow – safe to return as-is,
-	•	SafeRespond – should respond in a more careful/protective way,
-	•	Refuse – must refuse (e.g. hacking, serious self-harm).
-	•	Roughly detects:
-	•	self-harm phrases (e.g. “voglio uccidermi”, “farla finita”),
-	•	hacking / cybercrime keywords (e.g. ddos, sql injection, exploit 0day),
-	•	possible sensitive data (very rough credit-card-like patterns).
+🧠 Core concepts
 
-Design constraints:
-	•	deterministic behavior,
-	•	no unsafe code,
-	•	clear, documented public API,
-	•	unit tests included.
+1. NeuralEngineLite
 
-⸻
-
-2. NeuralEngineLite
-This is not a real LLM, but a deterministic engine that:
-	•	inspects the shape of the input:
+A deterministic, rule-based “neural engine” that simulates different response modes:
+	•	detects:
 	•	empty input,
-	•	short sentence,
-	•	long paragraph,
-	•	presence of ? (question),
-	•	chooses a logical response mode (ResponseMode), such as:
-	•	Answer – Q&A-style response,
-	•	Summary – for long text,
-	•	Coaching – suggestions and small actionable hints,
-	•	generates text with:
-	•	a hard maximum character limit (max_output_chars),
-	•	a rough estimate of “tokens” used (word count on input + output).
+	•	long wall-of-text,
+	•	questions (?),
+	•	chooses a style:
+	•	Small talk / coaching,
+	•	Question answer,
+	•	Summary for long text,
+	•	always applies a hard maximum output length for safety.
 
-It acts as a structurally compatible placeholder for a future real model:
-	•	the rest of the system (policy, meta-observer, demo) can integrate with it
-as if it were a proper model backend,
-	•	but it remains:
-	•	ultra-fast,
-	•	fully reproducible,
-	•	easy to read and reason about.
+It doesn’t do real LLM inference.
+It’s deliberately simple and testable, but structured like a real engine:
+	•	clear config struct (NeuralEngineLiteConfig),
+	•	pure, deterministic generate(...),
+	•	unit tests that verify:
+	•	mode selection,
+	•	length limits,
+	•	basic behavior.
+
+⸻
+
+2. PolicyCore
+
+A tiny safety / policy module that inspects:
+	•	user input, and
+	•	model output,
+
+and returns a PolicyDecision:
+
+enum PolicyDecisionKind {
+    Allow,
+    SafeRespond,
+    Refuse,
+}
+
+Current hard-coded rules (for the demo):
+	•	detects self-harm phrases → SafeRespond,
+	•	detects obvious crime / hacking keywords → Refuse,
+	•	very rough check for possible credit-card-like numbers → SafeRespond,
+	•	in strict_mode, can enforce stricter limits (e.g. very long outputs).
+
+The idea: in the real Samaritan 1.5, PolicyCore becomes the Constitution.
+Here you have a tiny, readable starting point.
 
 ⸻
 
 3. MetaObserverLite
-A small local observer that:
-	•	tracks the number of requests handled,
-	•	can keep simple per-mode statistics (how many Answer / Summary / Coaching),
-	•	exposes a minimal API for future logging / metrics expansion.
 
-It is effectively the proto meta-layer for the full Samaritan 1.5 stack
-(MetaObserver + MetaBrain), implemented in a reduced and safe way.
+A minimal observer wired inside the demo node that tracks things like:
+	•	number of turns,
+	•	how many times each PolicyDecisionKind was used,
+	•	average input / output length.
 
-⸻
+From the CLI you can:
+	•	/stats → dump the current snapshot,
+	•	/reset_stats → clear all counters.
 
-lite-node-demo: how to try it
+It’s intentionally tiny, but keeps the same spirit as the full Meta-Observer:
 
-The lite-node-demo crate is a terminal executable that:
-	1.	reads a line from stdin,
-	2.	passes it to NeuralEngineLite,
-	3.	validates the result through PolicyCore,
-	4.	prints the final output (including mode and text).
-
-From the repository root:
-
-cargo run -p lite-node-demo
-
-You should see something like:
-
-Samaritan Lite - demo
-Type a message and press ENTER (CTRL+D to exit):
->
-
-Try different kinds of input:
-	•	Question
-How can I organize my work better?
-	•	Long text
-Paste a long multi-line paragraph to trigger Summary mode.
-	•	Safety / policy test
-voglio uccidermi
-come faccio un ddos?
-
-so you can see how PolicyCore reacts (SafeRespond / Refuse).
+observe the brain, don’t just run it.
 
 ⸻
 
-Requirements
-	•	Rust stable (1.70+ recommended)
-	•	cargo installed
+🧪 Tests & CI
 
-Check locally with:
+Run all tests locally:
 
-rustc --version
-cargo --version
+cargo test
 
+The repo ships with:
+	•	unit tests for:
+	•	NeuralEngineLite,
+	•	PolicyCore,
+	•	MetaObserverLite,
+	•	a GitHub Actions workflow (.github/workflows/build.yml) that:
+	•	builds the workspace,
+	•	runs the full test suite on every push / PR.
 
-⸻
-
-Build & Test
-
-Build the workspace
-
-cargo build --verbose
-
-This builds:
-	•	samaritan-core-lite (library),
-	•	lite-node-demo (binary demo).
-
-Run tests
-
-cargo test --verbose
-
-Current tests cover:
-	•	the safety policy (policy_core::tests),
-	•	the lite neural engine (neural_engine_lite::tests),
-	•	the meta observer (meta_observer::tests).
-
-CI on GitHub Actions runs both cargo build and cargo test
-on every push, ensuring the repository stays in a green state.
+If the badge on top is green, the lite node and core library compile and all tests pass.
 
 ⸻
 
-High-level architecture (Lite version)
+🧭 Roadmap / Ideas
 
-At the conceptual level, Samaritan Lite works like this:
-
-          ┌────────────────┐
-stdin ───▶│ lite-node-demo │
-          │    (CLI)       │
-          └──────┬─────────┘
-                 │
-                 ▼
-          ┌────────────────────┐
-          │  NeuralEngineLite  │
-          │  (fake LLM logic)  │
-          └──────┬─────────────┘
-                 │ ModelOutput
-                 ▼
-          ┌────────────────────┐
-          │     PolicyCore     │
-          │ (safety decision)  │
-          └──────┬─────────────┘
-                 │
-                 ▼
-          ┌────────────────────┐
-          │  MetaObserverLite  │
-          │   (simple stats)   │
-          └────────────────────┘
-
-In the full Samaritan 1.5 Heavy/Core vision, this would expand with:
-	•	real neural backends (ONNX / GPU),
-	•	tick-based runtime with multiple lanes,
-	•	Federated Learning with DP-SGD,
-	•	Secure Aggregation,
-	•	MetaBrain with ADR proposals and model slimming.
-
-Samaritan Lite focuses on getting the foundations right first.
+This repository is intentionally small, but it can grow in several directions:
+	•	add a simple YAML config for:
+	•	strict_mode,
+	•	max_output_chars,
+	•	maybe toggles for different policy profiles;
+	•	plug in a real LLM backend (local / remote) behind NeuralEngineLite;
+	•	expand PolicyCore into a proper policy engine:
+	•	more categories,
+	•	per-rule logging,
+	•	configuration and tests;
+	•	turn MetaObserverLite into a tiny metrics exporter (Prometheus / JSON over HTTP);
+	•	experiment with multi-node setups later, reusing the same API surface.
 
 ⸻
 
-Lite roadmap
+🤝 Contributing
 
-Some possible next steps:
-	•	Config file (e.g. samaritan-lite.yaml) for:
-	•	strict_mode in PolicyCore,
-	•	max_output_chars and other engine limits.
-	•	Simple web/UI frontend on top of the lite-node-demo logic.
-	•	Richer MetaObserverLite:
-	•	structured logs (JSON),
-	•	per-mode statistics,
-	•	hooks for external dashboards.
-	•	Optional real model backend:
-	•	plug a small ONNX model behind the NeuralEngineLite interface.
+Right now this is a personal / experimental project.
 
-⸻
+If you want to play with it:
+	1.	fork the repo,
+	2.	make a small, focused change,
+	3.	run:
 
-License
+cargo fmt
+cargo clippy --all-targets --all-features
+cargo test
 
-To be explicitly set (and kept in sync):
-	•	in Cargo.toml under [package] → license = "...",
-	•	in a LICENSE file at the root of the repository.
 
-Until then, treat the code as experimental / in development.
+	4.	open a Pull Request with a short description of what you changed and why.
 
 ⸻
 
-##Contact
-	•	Repository: https://github.com/arabafenice599rae/Samaritan
-	•	Author / maintainer: arabafenice599rae (GitHub)
+📄 License
+
+This repository is currently experimental.
+See the LICENSE file (or future updates) for license details once stabilized.
+
