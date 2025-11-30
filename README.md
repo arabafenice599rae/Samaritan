@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo.svg" alt="Samaritan Logo" width="220" />
+  <img src="./logo.svg" alt="Samaritan Logo" width="260" />
 </p>
 
 Samaritan Lite is a **minimal, demonstrative implementation** of the Samaritan 1.5 architecture:
