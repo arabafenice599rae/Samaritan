@@ -1,7 +1,5 @@
 [workspace]
 members = [
-    "core",
+    "samaritan-lite-core",
     "lite-node-demo",
 ]
-
-resolver = "2"
