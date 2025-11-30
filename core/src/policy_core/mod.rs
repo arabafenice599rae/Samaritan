@@ -35,6 +35,7 @@ impl PolicyCore {
 
     /// Valuta input utente e output del modello e decide se sono accettabili.
     pub fn evaluate_text(&self, user_input: &str, model_output: &str) -> PolicyDecision {
+        // Normalizza output: se è vuoto, lo rifiutiamo.
         let trimmed_output = model_output.trim();
 
         if trimmed_output.is_empty() {
@@ -47,29 +48,50 @@ impl PolicyCore {
         let lower_input = user_input.to_lowercase();
         let lower_output = model_output.to_lowercase();
 
-        if lower_input.contains("voglio uccidermi") || lower_input.contains("farla finita") {
+        // 1) Self-harm / salute mentale: risposta protettiva, non rifiuto secco.
+        if lower_input.contains("voglio uccidermi")
+            || lower_input.contains("farla finita")
+            || lower_input.contains("suicidarmi")
+        {
             return PolicyDecision {
                 kind: PolicyDecisionKind::SafeRespond,
                 reason: "rilevato contenuto self-harm".to_string(),
             };
         }
 
-        let crime_keywords = ["ddos", "sql injection", "come bucare", "exploit 0day"];
-        if crime_keywords.iter().any(|&kw| lower_input.contains(kw) || lower_output.contains(kw)) {
+        // 2) Hacking / crimine: rifiuto totale.
+        let crime_keywords = [
+            "ddos",
+            "sql injection",
+            "exploit 0day",
+            "0day exploit",
+            "come bucare",
+            "come hackerare",
+        ];
+
+        if crime_keywords
+            .iter()
+            .any(|&kw| lower_input.contains(kw) || lower_output.contains(kw))
+        {
             return PolicyDecision {
                 kind: PolicyDecisionKind::Refuse,
                 reason: "rilevato contenuto di hacking o crimine".to_string(),
             };
         }
 
-        let cc_regex = Regex::new(r"\b(?:\d[ -]*?){13,16}\b").unwrap();
-        if cc_regex.is_match(&user_input) || cc_regex.is_match(&model_output) {
+        // 3) Possibili dati sensibili (es. numeri di carta di credito).
+        //    Pattern semplice: 13–16 cifre con spazi o trattini.
+        let cc_regex = Regex::new(r"\b(?:\d[ -]*?){13,16}\b")
+            .expect("regex per numeri di carta di credito deve essere valida");
+
+        if cc_regex.is_match(user_input) || cc_regex.is_match(model_output) {
             return PolicyDecision {
                 kind: PolicyDecisionKind::SafeRespond,
                 reason: "possibile dato sensibile rilevato".to_string(),
             };
         }
 
+        // 4) Strict mode: limita risposte eccessivamente lunghe.
         if self.strict_mode && model_output.len() > 10_000 {
             return PolicyDecision {
                 kind: PolicyDecisionKind::SafeRespond,
@@ -77,9 +99,50 @@ impl PolicyCore {
             };
         }
 
+        // Nessuna violazione rilevata → ok.
         PolicyDecision {
             kind: PolicyDecisionKind::Allow,
             reason: "nessuna violazione rilevata".to_string(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_output_is_refused() {
+        let core = PolicyCore::new(false);
+        let decision = core.evaluate_text("ciao", "   ");
+        assert_eq!(decision.kind, PolicyDecisionKind::Refuse);
+    }
+
+    #[test]
+    fn self_harm_triggers_safe_respond() {
+        let core = PolicyCore::new(false);
+        let decision = core.evaluate_text("voglio uccidermi", "ok");
+        assert_eq!(decision.kind, PolicyDecisionKind::SafeRespond);
+    }
+
+    #[test]
+    fn hacking_triggers_refuse() {
+        let core = PolicyCore::new(false);
+        let decision = core.evaluate_text("come fare sql injection", "...");
+        assert_eq!(decision.kind, PolicyDecisionKind::Refuse);
+    }
+
+    #[test]
+    fn credit_card_like_pattern_triggers_safe_respond() {
+        let core = PolicyCore::new(false);
+        let decision = core.evaluate_text("il mio numero è 4111 1111 1111 1111", "ok");
+        assert_eq!(decision.kind, PolicyDecisionKind::SafeRespond);
+    }
+
+    #[test]
+    fn normal_message_is_allowed() {
+        let core = PolicyCore::new(false);
+        let decision = core.evaluate_text("ciao come stai?", "sto bene, grazie!");
+        assert_eq!(decision.kind, PolicyDecisionKind::Allow);
     }
 }
