@@ -1,16 +1,22 @@
-//! Crate di base per Samaritan Core Lite.
+//! Crate core "lite" di Samaritan.
 //!
-//! Per ora espone solo il motore di policy (`PolicyCore`) usato per
-//! decidere se un output del modello è ammesso, da ammorbidire o da
-//! rifiutare del tutto.
+//! Questo crate contiene i mattoncini minimi e sicuri per costruire
+//! un nodo semplice:
+//!
+//! - `policy_core`: regole di sicurezza (Allow / SafeRespond / Refuse)
+//! - `meta_observer`: contatore banale di messaggi
+//! - `neural_engine_lite`: un engine testuale minimale (mock LLM)
 
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![warn(clippy::all, clippy::pedantic, clippy::nursery)]
 
-/// Modulo che implementa le regole di policy di Samaritan Lite.
+/// Modulo con le policy di sicurezza (self-harm, hacking, dati sensibili…).
 pub mod policy_core;
 
-// Re-export comodi, così da fuori puoi fare:
-// use samaritan_core_lite::{PolicyCore, PolicyDecision, PolicyDecisionKind};
-pub use crate::policy_core::{PolicyCore, PolicyDecision, PolicyDecisionKind};
+/// Modulo con un osservatore minimale per metriche di alto livello.
+pub mod meta_observer;
+
+/// Modulo con un "motore neurale" estremamente semplice, usato come
+/// placeholder per un LLM vero.
+pub mod neural_engine_lite;
