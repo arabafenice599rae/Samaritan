@@ -1,2 +1,2 @@
-# Samaritan
+
 build
