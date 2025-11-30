@@ -26,9 +26,6 @@ Samaritan Lite is a **minimal, demonstrative implementation** of the Samaritan 1
 > A distributed, privacy-by-design brain where every installation is a full node,  
 > not just a dumb client.
 
-This repository lives at:
-
-👉 <https://github.com/arabafenice599rae/Samaritan>
 
 Samaritan Lite focuses on a **tiny but clean core** that is easy to read, test and extend.
 
