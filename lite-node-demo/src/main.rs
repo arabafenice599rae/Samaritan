@@ -1,48 +1,24 @@
-#![forbid(unsafe_code)]
-#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+// lite-node-demo/src/main.rs
+//
+// Demo minimale per Samaritan Lite:
+// - usa SimpleNode (NeuralEngine + PolicyCore)
+// - legge input da stdin
+// - stampa output + decisione policy
 
-//! Eseguibile di demo per Samaritan Lite 0.1.
-//!
-//! Usa il `LiteNode` definito nel crate `samaritan-core` con un
-//! modello finto che fa solo echo dell'input. Serve per verificare
-//! il flusso completo: input → modello → PolicyCore → output.
-
-use std::error::Error;
 use std::io::{self, Write};
-use std::sync::Arc;
 
-use samaritan_core::{LiteNode, TextModel};
-use samaritan_core::policy_core::PolicyCore;
+use anyhow::Result;
+use samaritan_core_lite::{PolicyDecisionKind, SimpleNode};
 
-/// Modello di esempio estremamente semplice:
-/// restituisce sempre `echo: <prompt>`.
-struct EchoModel;
+fn main() -> Result<()> {
+    // Inizializza logging base (stdout)
+    tracing_subscriber::fmt::init();
 
-impl TextModel for EchoModel {
-    fn generate(&self, prompt: &str) -> anyhow::Result<String> {
-        Ok(format!("echo: {prompt}"))
-    }
-}
+    // Nodo semplice: strict_mode = false per la demo
+    let mut node = SimpleNode::new(false);
 
-/// Entry-point dell'eseguibile di demo.
-///
-/// Avvia un piccolo REPL:
-/// - legge una riga da stdin,
-/// - la passa al `LiteNode`,
-/// - stampa output + decisione di policy.
-/// Digita `exit` o `quit` per uscire.
-fn main() -> Result<(), Box<dyn Error>> {
-    // Logging minimale (userai `tracing_subscriber` se vuoi vedere log avanzati).
-    // Per ora non inizializziamo nulla: la demo stampa solo su stdout/stderr.
-
-    // Modalità non strict per iniziare.
-    let policy = PolicyCore::new(false);
-    let model = Arc::new(EchoModel);
-    let node = LiteNode::new(policy, model);
-
-    println!("Samaritan Lite 0.1 — demo CLI");
-    println!("Scrivi un messaggio e premi invio.");
-    println!("Digita 'exit' o 'quit' per uscire.\n");
+    println!("=== Samaritan Lite Node Demo ===");
+    println!("Digita un messaggio e premi Invio. Digita \"/quit\" per uscire.\n");
 
     let stdin = io::stdin();
     let mut stdout = io::stdout();
@@ -50,35 +26,53 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     loop {
         buffer.clear();
-        print!("> ");
+        print!("tu> ");
         stdout.flush()?;
 
-        let bytes_read = stdin.read_line(&mut buffer)?;
-        if bytes_read == 0 {
-            // EOF (Ctrl+D / fine input)
-            println!("\nEOF rilevato, esco.");
+        if stdin.read_line(&mut buffer)? == 0 {
+            // EOF (Ctrl+D / chiusura stdin)
+            println!("\nEOF rilevato, chiudo.");
             break;
         }
 
-        let line = buffer.trim();
-        if line.eq_ignore_ascii_case("exit") || line.eq_ignore_ascii_case("quit") {
-            println!("Ciao! 👋");
+        let trimmed = buffer.trim();
+        if trimmed.eq_ignore_ascii_case("/quit") {
+            println!("Uscita richiesta. Ciao!");
             break;
         }
 
-        let response = match node.handle_request(line) {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("Errore durante la gestione della richiesta: {e:?}");
-                continue;
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        // 1) Lascia che sia il SimpleNode a gestire il turno
+        let (model_output, decision) = node.handle_turn(trimmed);
+
+        // 2) Stampa in base alla decisione della policy
+        match decision.kind {
+            PolicyDecisionKind::Allow => {
+                println!("samaritan> {model_output}");
             }
-        };
+            PolicyDecisionKind::SafeRespond => {
+                println!("samaritan (safe)> {}", safe_wrapper(&model_output));
+                println!("  [policy: {:?} — {}]", decision.kind, decision.reason);
+            }
+            PolicyDecisionKind::Refuse => {
+                println!("samaritan> Mi dispiace, non posso rispondere a questa richiesta.");
+                println!("  [policy: {:?} — {}]", decision.kind, decision.reason);
+            }
+        }
 
-        println!("---");
-        println!("Decisione policy: {:?}", response.decision.kind);
-        println!("Motivo: {}", response.decision.reason);
-        println!("Risposta:\n{}\n", response.output);
+        println!();
     }
 
     Ok(())
+}
+
+/// Wrapper semplice per le risposte marcate come "SafeRespond".
+fn safe_wrapper(output: &str) -> String {
+    format!(
+        "{}\n\n[Nota: questa risposta è stata filtrata in modalità sicura.]",
+        output.trim()
+    )
 }
