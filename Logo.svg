@@ -1,145 +1,108 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="512"
-    height="512"
-    viewBox="0 0 512 512"
+  width="512"
+  height="512"
+  viewBox="0 0 512 512"
+  xmlns="http://www.w3.org/2000/svg"
+  role="img"
+  aria-labelledby="title desc"
 >
-  <defs>
-    <!-- Bagliore azzurro centrale -->
-    <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#1fb3ff" stop-opacity="0.9"/>
-      <stop offset="60%" stop-color="#0b2840" stop-opacity="0.95"/>
-      <stop offset="100%" stop-color="#050b14" stop-opacity="1"/>
-    </radialGradient>
+  <title id="title">Samaritan Lite Logo</title>
+  <desc id="desc">
+    Minimal shield with neural nodes forming an S shape, representing a safe distributed brain.
+  </desc>
 
-    <!-- Colore principale Samaritan -->
-    <linearGradient id="primaryStroke" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4fd2ff"/>
-      <stop offset="100%" stop-color="#0ac0ff"/>
+  <!-- Background -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#050816"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#22c55e"/>
     </linearGradient>
   </defs>
 
-  <!-- Sfondo con bagliore -->
   <rect
-      x="0"
-      y="0"
-      width="512"
-      height="512"
-      fill="url(#bgGlow)"
+    x="0"
+    y="0"
+    width="512"
+    height="512"
+    fill="url(#bg)"
+    rx="64"
+    ry="64"
   />
 
-  <!-- “Cervello” stilizzato: due emisferi -->
-  <g transform="translate(96,72)">
-    <!-- Contorno emisferi -->
-    <path
-      d="
-        M160 0
-        C120 0 96 24 96 64
-        C64 64 48 88 48 120
-        C24 136 16 160 16 184
-        C16 224 32 248 48 264
-        C48 304 72 328 112 328
-        C128 352 144 368 160 368
-        C176 368 192 352 208 328
-        C248 328 272 304 272 264
-        C288 248 304 224 304 184
-        C304 160 296 136 272 120
-        C272 88 256 64 224 64
-        C224 24 200 0 160 0
-        Z"
-      fill="none"
-      stroke="url(#primaryStroke)"
-      stroke-width="10"
-      stroke-linejoin="round"
-    />
+  <!-- Shield outline -->
+  <path
+    d="M256 72
+       L152 112
+       v132
+       c0 86 52 138 104 168
+       c52-30 104-82 104-168
+       V112
+       Z"
+    fill="none"
+    stroke="url(#accent)"
+    stroke-width="18"
+    stroke-linejoin="round"
+  />
 
-    <!-- Linea centrale che divide i due emisferi -->
-    <line
-      x1="160"
-      y1="20"
-      x2="160"
-      y2="348"
-      stroke="url(#primaryStroke)"
-      stroke-width="6"
-      stroke-linecap="round"
-    />
+  <!-- Neural S path (nodes + connections) -->
+  <!-- Upper arc -->
+  <path
+    d="M190 170
+       C220 140 292 140 322 170"
+    fill="none"
+    stroke="#e5e7eb"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+  <!-- Middle arc -->
+  <path
+    d="M190 230
+       C222 260 290 260 322 230"
+    fill="none"
+    stroke="#e5e7eb"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+  <!-- Lower arc -->
+  <path
+    d="M190 290
+       C220 320 292 320 322 290"
+    fill="none"
+    stroke="#e5e7eb"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
 
-    <!-- Rete neurale / albero interno -->
-    <!-- Trunk -->
-    <line
-      x1="160"
-      y1="220"
-      x2="160"
-      y2="120"
-      stroke="#4fd2ff"
-      stroke-width="6"
-      stroke-linecap="round"
-    />
+  <!-- Nodes along the S -->
+  <circle cx="190" cy="170" r="9" fill="#38bdf8"/>
+  <circle cx="256" cy="155" r="8" fill="#a855f7"/>
+  <circle cx="322" cy="170" r="9" fill="#22c55e"/>
 
-    <!-- Ramo sinistro alto -->
-    <line
-      x1="160"
-      y1="170"
-      x2="112"
-      y2="130"
-      stroke="#4fd2ff"
-      stroke-width="6"
-      stroke-linecap="round"
-    />
+  <circle cx="190" cy="230" r="7" fill="#38bdf8"/>
+  <circle cx="256" cy="245" r="7" fill="#a855f7"/>
+  <circle cx="322" cy="230" r="7" fill="#22c55e"/>
 
-    <!-- Ramo destro alto -->
-    <line
-      x1="160"
-      y1="150"
-      x2="216"
-      y2="112"
-      stroke="#4fd2ff"
-      stroke-width="6"
-      stroke-linecap="round"
-    />
+  <circle cx="190" cy="290" r="9" fill="#38bdf8"/>
+  <circle cx="256" cy="305" r="8" fill="#a855f7"/>
+  <circle cx="322" cy="290" r="9" fill="#22c55e"/>
 
-    <!-- Ramo sinistro basso -->
-    <line
-      x1="160"
-      y1="230"
-      x2="112"
-      y2="260"
-      stroke="#4fd2ff"
-      stroke-width="6"
-      stroke-linecap="round"
-    />
-
-    <!-- Ramo destro basso -->
-    <line
-      x1="160"
-      y1="240"
-      x2="216"
-      y2="280"
-      stroke="#4fd2ff"
-      stroke-width="6"
-      stroke-linecap="round"
-    />
-
-    <!-- Nodi / sinapsi -->
-    <circle cx="160" cy="120" r="10" fill="#0ac0ff"/>
-    <circle cx="112" cy="130" r="10" fill="#0ac0ff"/>
-    <circle cx="216" cy="112" r="10" fill="#0ac0ff"/>
-    <circle cx="112" cy="260" r="10" fill="#0ac0ff"/>
-    <circle cx="216" cy="280" r="10" fill="#0ac0ff"/>
-    <circle cx="160" cy="220" r="10" fill="#0ac0ff"/>
-  </g>
-
-  <!-- Scritta opzionale "SAMARITAN" sotto il logo -->
+  <!-- Small "S" mark at bottom -->
   <text
-    x="50%"
-    y="480"
+    x="256"
+    y="380"
     text-anchor="middle"
     font-family="system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif"
-    font-size="32"
-    fill="#5ed8ff"
-    letter-spacing="4"
+    font-size="52"
+    fill="#e5e7eb"
+    letter-spacing="2"
   >
-    SAMARITAN
+    S
   </text>
 </svg>
