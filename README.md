@@ -1,5 +1,3 @@
-Perfetto, procedo col nuovo README completo (così non rompi niente in CI e migliori subito il repo).
-Ti basta sostituire il contenuto di Samaritan/README.md con quello qui sotto.
 
 <p align="center">
   <img src="logo.svg" alt="Samaritan Lite Logo" width="220" />
