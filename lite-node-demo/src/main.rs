@@ -1,24 +1,29 @@
-// lite-node-demo/src/main.rs
-//
-// Demo minimale per Samaritan Lite:
-// - usa SimpleNode (NeuralEngine + PolicyCore + MetaObserverLite)
-// - legge input da stdin
-// - stampa output + decisione policy
-// - comando speciale: /stats per vedere le statistiche
+//! Samaritan Lite Node Demo
+//!
+//! - usa SimpleNode (NeuralEngine finto + PolicyCore + MetaObserverLite)
+//! - legge input da stdin
+//! - stampa output + decisione della policy
+//! - comandi speciali:
+//!   * /stats       → mostra statistiche MetaObserverLite
+//!   * /reset_stats → azzera le statistiche
+//!   * /quit        → esce
 
 use std::io::{self, Write};
 
+mod policy_core;
+mod simple_node;
+mod meta_observer_lite;
+
 use anyhow::Result;
-use samaritan_core_lite::{PolicyDecisionKind, SimpleNode};
+use policy_core::PolicyDecisionKind;
+use simple_node::SimpleNode;
 
 fn main() -> Result<()> {
-    // Inizializza logging base (stdout)
-    tracing_subscriber::fmt::init();
-
-    // Nodo semplice: strict_mode = false per la demo
+    // Per ora strict_mode = false (risposte più permissive).
+    // In futuro: leggeremo questo da un file di config.
     let mut node = SimpleNode::new(false);
 
-    println!("=== Samaritan Lite Node Demo ===");
+    println!("=== Samaritan Lite Node Demo ===\n");
     println!("Comandi:");
     println!("  - digita un messaggio normale per parlare con il nodo");
     println!("  - digita \"/stats\" per vedere le statistiche di policy");
@@ -27,84 +32,69 @@ fn main() -> Result<()> {
 
     let stdin = io::stdin();
     let mut stdout = io::stdout();
-    let mut buffer = String::new();
 
     loop {
-        buffer.clear();
-        print!("tu> ");
+        print!("you> ");
         stdout.flush()?;
 
-        if stdin.read_line(&mut buffer)? == 0 {
-            // EOF (Ctrl+D / chiusura stdin)
-            println!("\nEOF rilevato, chiudo.");
-            break;
-        }
+        let mut buffer = String::new();
+        stdin.read_line(&mut buffer)?;
 
+        // Rimuove spazi / newline ai bordi
         let trimmed = buffer.trim();
 
+        // 1) Se è vuoto (solo Invio), ricomincia il loop
         if trimmed.is_empty() {
             continue;
         }
 
+        // 2) Comando di uscita
         if trimmed.eq_ignore_ascii_case("/quit") {
             println!("Uscita richiesta. Ciao!");
             break;
         }
 
+        // 3) Comando: mostra statistiche MetaObserverLite
         if trimmed.eq_ignore_ascii_case("/stats") {
             let snapshot = node.meta().snapshot();
-            println!("--- Statistiche MetaObserverLite ---");
-            println!("  Turni totali:   {}", snapshot.total_turns);
-            println!("  Allow:          {} ({:.1}%)",
-                snapshot.allow_count,
-                snapshot.allow_ratio_percent()
-            );
-            println!("  SafeRespond:    {} ({:.1}%)",
-                snapshot.safe_respond_count,
-                snapshot.safe_respond_ratio_percent()
-            );
-            println!("  Refuse:         {} ({:.1}%)",
-                snapshot.refuse_count,
-                snapshot.refuse_ratio_percent()
-            );
-            println!();
+
+            println!("\n--- Statistiche MetaObserverLite ---");
+            println!("  - totale richieste: {}", snapshot.total_requests);
+            println!("  - Allow:            {}", snapshot.allow_count);
+            println!("  - SafeRespond:      {}", snapshot.safe_respond_count);
+            println!("  - Refuse:           {}", snapshot.refuse_count);
+            println!("------------------------------------\n");
+
             continue;
         }
 
+        // 4) Comando: reset statistiche
         if trimmed.eq_ignore_ascii_case("/reset_stats") {
             node.reset_stats();
             println!("Statistiche azzerate.\n");
             continue;
         }
 
-        // Turno normale: lascia che sia il SimpleNode a gestire input + policy
+        // 5) Turno normale: lascia che il SimpleNode gestisca input + policy
         let (model_output, decision) = node.handle_turn(trimmed);
 
-        // Stampa in base alla decisione della policy
+        // 6) Stampa in base alla decisione della policy
         match decision.kind {
             PolicyDecisionKind::Allow => {
                 println!("samaritan> {model_output}");
             }
             PolicyDecisionKind::SafeRespond => {
-                println!("samaritan (safe)> {}", safe_wrapper(&model_output));
-                println!("  [policy: {:?} — {}]", decision.kind, decision.reason);
+                println!("samaritan (safe)> {model_output}");
+                println!("  [nota: risposta adattata per motivi di sicurezza]");
             }
             PolicyDecisionKind::Refuse => {
-                println!("samaritan> Mi dispiace, non posso rispondere a questa richiesta.");
-                println!("  [policy: {:?} — {}]", decision.kind, decision.reason);
+                println!("samaritan (refuse)> Mi dispiace, non posso aiutarti su questo.");
+                println!("  [motivo: {}]", decision.reason);
             }
         }
 
-        println!();
+        println!(); // Riga vuota per separare i turni
     }
 
     Ok(())
-}
-
-/// Wrapper semplice per le risposte marcate come "SafeRespond".
-fn safe_wrapper(output: &str) -> String {
-    format!(
-        "{}\n\n[Nota: questa risposta è stata filtrata in modalità sicura.]",
-        output.trim()
-    )
 }
