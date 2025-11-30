@@ -1,47 +1,25 @@
-// samaritan-core-lite/src/node.rs
+// samaritan-core-lite/src/lib.rs
 //
-// Nodo semplice per Samaritan Lite:
-// incapsula NeuralEngine + PolicyCore e gestisce una singola "turno" di conversazione.
+// Crate core di Samaritan Lite:
+// - PolicyCore: regole di sicurezza basilari
+// - NeuralEngine: motore "neurale" minimale (per ora pseudo-LLM)
+// - SimpleNode: orchestratore tra engine + policy + meta-observer
+// - MetaObserverLite: contatore semplice di statistiche sulle decisioni di policy
 
-use crate::{NeuralEngine, PolicyCore, PolicyDecision};
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
 
-/// Nodo minimale di Samaritan Lite.
-///
-/// Questo tipo rappresenta un "cervello locale" estremamente semplificato:
-/// - ha un `NeuralEngine` interno (motore di generazione risposte),
-/// - ha un `PolicyCore` interno (controllo di sicurezza),
-/// - espone un metodo `handle_turn` che va da input utente a:
-///   - output del modello
-///   - decisione di policy su quell'output.
-#[derive(Debug)]
-pub struct SimpleNode {
-    engine: NeuralEngine,
-    policy: PolicyCore,
-}
+/// Modulo che contiene il core delle policy di sicurezza.
+pub mod policy_core;
+/// Modulo che contiene il motore neurale minimale.
+pub mod neural_engine;
+/// Modulo che contiene il nodo semplice che orchestra engine + policy.
+pub mod node;
+/// Modulo che contiene il meta-observer leggero.
+pub mod meta_observer;
 
-impl SimpleNode {
-    /// Crea un nuovo `SimpleNode`.
-    ///
-    /// * `strict_mode` — se `true`, abilita controlli più severi nel `PolicyCore`.
-    pub fn new(strict_mode: bool) -> Self {
-        let engine = NeuralEngine::new();
-        let policy = PolicyCore::new(strict_mode);
-        Self { engine, policy }
-    }
-
-    /// Gestisce un singolo turno di conversazione.
-    ///
-    /// Dato un `user_input`:
-    /// 1. chiama il motore neurale per ottenere `model_output`,
-    /// 2. fa valutare il pair (input, output) al `PolicyCore`,
-    /// 3. restituisce la coppia `(model_output, decision_di_policy)`.
-    ///
-    /// Questo metodo **non** applica ancora alcun wrapping alla risposta
-    /// (es. filtri di stile per SafeRespond): questo è lasciato allo strato
-    /// superiore (UI / CLI / API) che può decidere come presentare il tutto.
-    pub fn handle_turn(&mut self, user_input: &str) -> (String, PolicyDecision) {
-        let output = self.engine.infer(user_input);
-        let decision = self.policy.evaluate_text(user_input, &output);
-        (output, decision)
-    }
-}
+pub use policy_core::{PolicyCore, PolicyDecision, PolicyDecisionKind};
+pub use neural_engine::NeuralEngine;
+pub use node::SimpleNode;
+pub use meta_observer::{MetaObserverLite, MetaSnapshot};
