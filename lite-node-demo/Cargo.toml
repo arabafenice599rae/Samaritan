@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 regex = { workspace = true }
+anyhow = { workspace = true }  # Aggiungi questa riga
+
