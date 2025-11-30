@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "core",
+    "lite-node-demo",
+]
+
+resolver = "2"
