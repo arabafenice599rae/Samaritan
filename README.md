@@ -249,6 +249,6 @@ Until then, treat the code as experimental / in development.
 
 ⸻
 
-Contact
+##Contact
 	•	Repository: https://github.com/arabafenice599rae/Samaritan
 	•	Author / maintainer: arabafenice599rae (GitHub)
