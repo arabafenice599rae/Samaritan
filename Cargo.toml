@@ -3,3 +3,5 @@ members = [
     "samaritan-lite-core",
     "lite-node-demo",
 ]
+
+resolver = "2"
