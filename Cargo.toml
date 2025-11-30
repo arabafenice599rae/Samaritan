@@ -1,16 +1,5 @@
 [workspace]
 members = [
+    "samaritan-core-lite",
     "lite-node-demo",
 ]
-
-resolver = "2"
-
-[profile.dev]
-opt-level = 0
-
-[profile.release]
-opt-level = 3
-lto = "fat"
-codegen-units = 1
-panic = "abort"
-strip = true
