@@ -2,19 +2,6 @@
 name = "samaritan-core-lite"
 version = "0.1.0"
 edition = "2021"
-authors = ["arabafenice599rae"]
-description = "Samaritan Lite core: SimpleNode + PolicyCore + MetaObserverLite"
-license = "AGPL-3.0-or-later"
-
-[lib]
-name = "samaritan_core_lite"
-path = "src/lib.rs"
 
 [dependencies]
-anyhow = "1.0"
-regex = "1.11"
-tracing = "0.1"
-thiserror = "1.0"
-
-[dev-dependencies]
-proptest = "1.5"
+regex = "1"
