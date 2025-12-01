@@ -1,8 +1,0 @@
-[package]
-name = "samaritan-core-lite"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-regex = "1.12"
-anyhow = "1.0"
