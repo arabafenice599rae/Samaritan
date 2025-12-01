@@ -1,12 +1,35 @@
 [workspace]
-resolver = "2"
-
 members = [
-    "samaritan-core",
-    "node",
-    "core",                 # nuovo crate Heavy/Core
+    "core",
 ]
 
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+authors = ["arabafenice599rae"]
+repository = "https://github.com/arabafenice599rae/Samaritan"
+description = "Samaritan 1.5 – distributed, privacy-by-design brain (Heavy/Core)"
+
 [workspace.dependencies]
-regex = "1.10"
 anyhow = "1.0"
+tokio = { version = "1.40", features = [
+    "rt-multi-thread",
+    "macros",
+    "time",
+    "fs",
+    "sync",
+    "net",
+] }
+tracing = "0.1"
+uuid = { version = "1.8", features = ["v4", "fast-rng"] }
+hex = "0.4"
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+thiserror = "1.0"
+bytes = "1.6"
+futures = "0.3"
