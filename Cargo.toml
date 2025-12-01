@@ -1,9 +1,12 @@
 [workspace]
 resolver = "2"
+
 members = [
     "samaritan-core-lite",
     "lite-node-demo",
+    "core",                 # nuovo crate Heavy/Core
 ]
+
 [workspace.dependencies]
 regex = "1.10"
-anyhow = "1.0"  # Aggiungi questa riga
+anyhow = "1.0"
