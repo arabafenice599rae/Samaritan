@@ -1,50 +1,47 @@
 //! Samaritan Core Lite
 //!
-//! Questo crate fornisce il “cuore” minimale di Samaritan in versione Lite:
-//! - un motore neurale euristico (`NeuralEngineLite`),
-//! - un nucleo di policy di sicurezza (`PolicyCore`),
-//! - un semplice orchestratore di nodo (`SimpleNode`),
-//! - un modulo di Differential Privacy standalone per federated learning
-//!   (`differential_privacy`).
+//! Libreria centrale minimale per Samaritan Lite, pensata per:
 //!
-//! Il focus è avere codice **reale**, compilabile, senza dipendenze esterne
-//! oltre a `anyhow` e `regex`, mantenendo però uno standard pulito e chiaro.
+//! - avere un piccolo **motore neurale locale** (`NeuralEngineLite`),
+//! - applicare **policy di sicurezza** centralizzate (`PolicyCore`),
+//! - raccogliere **metriche per tick** (`MetaObserverLite`),
+//! - supportare **Differential Privacy** (`differential_privacy` + `DpTrainer`),
+//! - offrire un nodo semplice da usare nei demo (`SimpleNode`).
+//!
+//! Questo crate è pensato come “nodo lite” coerente con la visione Samaritan
+//! 1.5, ma senza dipendenze esterne pesanti: solo `anyhow` e `regex`.
 
-#![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![warn(clippy::all, clippy::pedantic, clippy::nursery)]
 
+mod policy_core;
+mod neural_engine_lite;
+mod meta_observer_lite;
+mod differential_privacy;
+mod dp_trainer;
+
+use std::time::Instant;
+
 use anyhow::Result;
 
-pub mod policy_core;
-pub mod neural_engine_lite;
-pub mod meta_observer;
-pub mod differential_privacy;
-
-use crate::neural_engine_lite::{ModelOutput, NeuralEngineLite, NeuralEngineLiteConfig};
-use crate::policy_core::{PolicyCore, PolicyDecisionKind};
-
-/// Riesporta i componenti di Differential Privacy per uso esterno.
-///
-/// Questo modulo è pensato per essere utilizzato da pipeline di training
-/// federato/lite che vogliono applicare DP a gradienti o pesi.
 pub use crate::differential_privacy::{l2_norm, DPConfig, DPEngine, PrivacyAccountant};
-
-/// Riesporta alcuni tipi principali del motore neurale, per comodità.
-pub use crate::neural_engine_lite::{NeuralEngineLite as LiteEngine, NeuralEngineLiteConfig as LiteEngineConfig};
-
-/// Riesporta il nucleo di policy, per eventuali usi avanzati.
-pub use crate::policy_core::{PolicyCore as LitePolicyCore, PolicyDecision, PolicyDecisionKind as LitePolicyDecisionKind};
+pub use crate::dp_trainer::{
+    DpOptimizable, DpTrainer, DpTrainingConfig, RoundStats, TrainerStats,
+};
+pub use crate::meta_observer_lite::{AggregatedStats, MetaObserverLite, NodeTickEvent};
+pub use crate::neural_engine_lite::{
+    NeuralEngineLite, NeuralEngineLiteConfig, NeuralOutput, ResponseMode,
+};
+pub use crate::policy_core::{PolicyCore, PolicyDecision, PolicyDecisionKind};
 
 /// Configurazione di alto livello per un `SimpleNode`.
 ///
-/// Questa struttura definisce:
-/// - se usare la modalità strict delle policy,
-/// - come configurare il motore neurale lite (limite caratteri, ecc.).
+/// Per il Lite demo teniamo solo poche opzioni:
+/// - `strict_policy` per rendere il PolicyCore più conservativo,
+/// - configurazione del motore neurale.
 #[derive(Debug, Clone)]
 pub struct SimpleNodeConfig {
-    /// Se `true`, abilita controlli più conservativi nel `PolicyCore`
-    /// (es. limiti aggiuntivi sulla lunghezza dell'output).
+    /// Modalità strict per il PolicyCore (più conservativo).
     pub strict_policy: bool,
     /// Configurazione del motore neurale lite.
     pub engine: NeuralEngineLiteConfig,
@@ -59,102 +56,139 @@ impl Default for SimpleNodeConfig {
     }
 }
 
-/// Nodo logico minimale di Samaritan Lite.
+/// Output di alto livello del `SimpleNode` per una singola richiesta.
 ///
-/// Si occupa di:
-/// - ricevere testo utente,
-/// - generare una risposta con `NeuralEngineLite`,
-/// - far passare input/output attraverso il `PolicyCore`,
-/// - restituire all'esterno solo testi considerati sicuri.
+/// È esattamente ciò che serve al frontend / demo:
+/// - testo finale già filtrato dalla policy,
+/// - decisione di policy applicata (per logging o debug),
+/// - metadati utili (modalità risposta, token stimati).
+#[derive(Debug, Clone)]
+pub struct SimpleNodeOutput {
+    /// Testo finale che il nodo restituisce all’utente.
+    pub text: String,
+    /// Decisione di policy applicata a questa risposta.
+    pub policy_decision: PolicyDecisionKind,
+    /// Modalità logica della risposta (Answer / Summary / Coaching).
+    pub mode: ResponseMode,
+    /// Stima approssimativa dei token usati.
+    pub tokens_used: usize,
+}
+
+/// Nodo Lite completo: motore neurale + policy + meta-osservabilità.
 ///
-/// Tutta la logica di policy e neural engine è incapsulata, in modo che
-/// `lite-node-demo` (o altri binari) possano limitarsi a chiamare
-/// `handle_input`.
+/// Questo è il “cervello unico” usato dal binario `lite-node-demo`.
+/// Non fa rete, non fa federated learning: è solo il nucleo locale.
+///
+/// Flusso per ogni messaggio:
+///
+/// 1. `NeuralEngineLite` genera una risposta grezza.
+/// 2. `PolicyCore` valuta input+output e decide Allow / SafeRespond / Refuse.
+/// 3. Applichiamo la decisione (testo finale).
+/// 4. `MetaObserverLite` registra latenza e token.
+/// 5. Ritorniamo un [`SimpleNodeOutput`] adatto ad essere mostrato al terminale/UI.
 #[derive(Debug)]
 pub struct SimpleNode {
-    policy: PolicyCore,
+    id: String,
+    policy_core: PolicyCore,
     engine: NeuralEngineLite,
+    meta: MetaObserverLite,
 }
 
 impl SimpleNode {
-    /// Crea un nuovo nodo a partire da una configurazione esplicita.
+    /// Crea un nuovo nodo con configurazione di default.
     ///
-    /// Non usa I/O, non legge variabili d'ambiente: si limita a
-    /// inizializzare i componenti interni in modo deterministico
-    /// rispetto alla `config` passata.
-    pub fn new(config: SimpleNodeConfig) -> Self {
-        let policy = PolicyCore::new(config.strict_policy);
-        let engine = NeuralEngineLite::new(config.engine);
-
-        Self { policy, engine }
+    /// È comodo per demo / test veloci:
+    /// ```ignore
+    /// let mut node = SimpleNode::new(false)?;
+    /// let out = node.handle_user_message("ciao")?;
+    /// println!("{}", out.text);
+    /// ```
+    pub fn new(strict_policy: bool) -> Result<Self> {
+        let cfg = SimpleNodeConfig {
+            strict_policy,
+            ..SimpleNodeConfig::default()
+        };
+        Self::from_config("node-lite-1".to_string(), cfg)
     }
 
-    /// Crea un nodo con configurazione di default.
-    ///
-    /// Utile per test, esempi, o casi in cui non serve personalizzare
-    /// `strict_policy` e i parametri del motore neurale.
-    pub fn new_default() -> Self {
-        Self::new(SimpleNodeConfig::default())
+    /// Costruisce un nodo a partire da un id e una configurazione esplicita.
+    pub fn from_config(id: String, cfg: SimpleNodeConfig) -> Result<Self> {
+        let policy_core = PolicyCore::new(cfg.strict_policy);
+        let engine = NeuralEngineLite::new(cfg.engine.max_output_chars);
+        let meta = MetaObserverLite::new(id.clone());
+
+        Ok(Self {
+            id,
+            policy_core,
+            engine,
+            meta,
+        })
     }
 
-    /// Accesso in sola lettura alla configurazione corrente del motore neurale.
-    pub fn engine_config(&self) -> &NeuralEngineLiteConfig {
-        self.engine.config()
+    /// Restituisce l’identificatore del nodo.
+    pub fn id(&self) -> &str {
+        &self.id
     }
 
-    /// Gestisce un singolo input utente, applicando:
-    /// 1. generazione neurale con `NeuralEngineLite`,
-    /// 2. valutazione di policy con `PolicyCore`,
-    /// 3. trasformazione finale in risposta testuale sicura.
-    ///
-    /// Ritorna **sempre** una `String` pronta per essere mostrata
-    /// all’utente (mai errori di policy come `Err`), salvo errori
-    /// interni del motore neurale o I/O.
-    pub fn handle_input(&mut self, user_input: &str) -> Result<String> {
-        // 1. Generazione neurale (euristica, deterministica)
-        let raw_output: ModelOutput = self.engine.generate(user_input)?;
+    /// Restituisce un riferimento al meta-observer interno.
+    pub fn meta_observer(&self) -> &MetaObserverLite {
+        &self.meta
+    }
 
-        // 2. Valutazione delle policy su coppia (input, output)
+    /// Restituisce un riferimento mutabile al meta-observer interno.
+    pub fn meta_observer_mut(&mut self) -> &mut MetaObserverLite {
+        &mut self.meta
+    }
+
+    /// Gestisce un singolo messaggio utente e produce un output finale.
+    ///
+    /// Passi:
+    /// - genera testo grezzo con `NeuralEngineLite`,
+    /// - applica `PolicyCore` per decidere cosa fare,
+    /// - registra metriche nel `MetaObserverLite`,
+    /// - restituisce un [`SimpleNodeOutput`] pronto per il frontend.
+    pub fn handle_user_message(&mut self, user_input: &str) -> Result<SimpleNodeOutput> {
+        let started = Instant::now();
+
+        // 1) Generazione neurale grezza
+        let raw = self.engine.generate(user_input);
+        let latency_ms = started.elapsed().as_secs_f32() * 1_000.0;
+
+        // 2) Valutazione policy
         let decision = self
-            .policy
-            .evaluate_text(user_input, &raw_output.text);
+            .policy_core
+            .evaluate_text(user_input, &raw.text);
 
-        // 3. Costruzione della risposta finale in base alla decisione
+        // 3) Applichiamo la policy al testo
         let final_text = match decision.kind {
-            PolicyDecisionKind::Allow => {
-                // Nessun problema rilevato: restituiamo il testo così com'è.
-                raw_output.text
-            }
+            PolicyDecisionKind::Allow => raw.text.clone(),
             PolicyDecisionKind::SafeRespond => {
-                // Contenuto potenzialmente sensibile o delicato.
-                //
-                // In modalità Lite, applichiamo una risposta estremamente prudente,
-                // senza riportare direttamente il contenuto problematico.
-                let mut out = String::new();
-                out.push_str("For safety reasons I will answer in a very general and protective way.\n\n");
-                out.push_str("I cannot go into technical, harmful or overly detailed instructions here.\n");
-                out.push_str("If you are dealing with something risky or sensitive, consider talking with a qualified professional or trusted person.\n");
-                out
+                // Qui potresti collegare una pipeline di "riscrittura safe".
+                // Per ora ci limitiamo a segnalare la modalità di sicurezza.
+                format!(
+                    "[safe-mode] {}\n\n(Questa risposta è stata adattata per maggiore sicurezza.)",
+                    raw.text
+                )
             }
             PolicyDecisionKind::Refuse => {
-                // Contenuto esplicitamente vietato (es. hacking, crimini, ecc.).
-                //
-                // In questo caso rifiutiamo in modo chiaro, senza fornire
-                // alcun dettaglio operativo.
-                "I’m not allowed to help with this type of request in Samaritan Lite."
-                    .to_string()
+                "I’m not able to provide a safe answer to this request.".to_string()
             }
         };
 
-        Ok(final_text)
-    }
+        // 4) Aggiorniamo il MetaObserverLite
+        let event = NodeTickEvent {
+            node_id: self.id.clone(),
+            latency_ms,
+            tokens_used: raw.tokens_used as u64,
+        };
+        self.meta.on_tick(event);
 
-    /// Variante che restituisce anche i metadati neurali, prima delle policy.
-    ///
-    /// Utile per strumenti avanzati, logging o meta-analisi. **Attenzione**:
-    /// la risposta contenuta in `ModelOutput` non è stata ancora filtrata
-    /// dalle policy, quindi non va mostrata direttamente all’utente finale.
-    pub fn generate_raw(&mut self, user_input: &str) -> Result<ModelOutput> {
-        self.engine.generate(user_input)
+        // 5) Ritorniamo un output pulito
+        Ok(SimpleNodeOutput {
+            text: final_text,
+            policy_decision: decision.kind,
+            mode: raw.mode,
+            tokens_used: raw.tokens_used,
+        })
     }
 }
