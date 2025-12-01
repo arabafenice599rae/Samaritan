@@ -1,0 +1,44 @@
+[package]
+name = "samaritan-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Samaritan 1.5 Heavy/Core – full NeuroNode runtime (tick loop, policy, federated, DP, network, snapshots)."
+repository = "https://github.com/arabafenice599rae/Samaritan"
+authors = ["arabafenice599rae"]
+
+[lib]
+name = "samaritan_core"
+path = "src/lib.rs"
+
+[dependencies]
+# Error handling
+anyhow = { workspace = true }
+
+# Logging / tracing
+tracing = "0.1"
+
+# Async runtime
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "fs", "sync"] }
+
+# IDs, encoding
+uuid = { version = "1", features = ["v4"] }
+hex = "0.4"
+
+# Config / serialization
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+
+# Policy / regex
+regex = { workspace = true }
+
+# (opzionale, quando inizieremo a parlare con HTTP/API)
+# axum = "0.7"
+# hyper = { version = "1", features = ["full"] }
+
+# (opzionale, quando inseriamo ONNX reale)
+# onnxruntime = { version = "0.0.0", features = ["load-dynamic"] }
+
+[dev-dependencies]
+# Test aggiuntivi se servono in futuro
+# pretty_assertions = "1.4"
