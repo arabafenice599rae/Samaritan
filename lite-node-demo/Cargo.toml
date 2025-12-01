@@ -1,9 +1,0 @@
-[package]
-name = "lite-node-demo"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-regex = { workspace = true }
-anyhow = { workspace = true }  # Aggiungi questa riga
-
