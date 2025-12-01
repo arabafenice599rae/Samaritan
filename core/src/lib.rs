@@ -1,27 +1,40 @@
-//! Samaritan 1.5 — Heavy/Core NeuroNode library
+//! Samaritan 1.5 — Heavy/Core NeuroNode library.
 //!
-//! Questo crate implementa il **NeuroNode Heavy/Core** di Samaritan:
-//! ogni processo è un cervello locale completo, privacy-by-design, che
-//! partecipa al cervello globale tramite Federated Learning con
-//! Differential Privacy.
+//! Questo crate implementa il **NeuroNode** completo per il profilo Heavy/Core:
 //!
-//! # Componenti principali
+//! - runtime a tick con corsie (critical / background),
+//! - motore neurale (`NeuralEngine<OnnxBackend>`),
+//! - `PolicyCore` per sicurezza e governance,
+//! - stato federato con DP e Secure Aggregation,
+//! - `MetaObserver` e `MetaBrain` per meta-livello,
+//! - snapshot periodici e aggiornamenti binari via `UpdateAgent`.
 //!
-//! - [`NeuroNode`]: istanza completa del cervello locale
-//! - [`policy_core`]: Costituzione di sicurezza e privacy
-//! - [`neural_engine`]: backend neurale (ONNX / GPU, ecc.)
-//! - [`federated`]: stato federato, DP-SGD, secure aggregation
-//! - [`differential_privacy`]: meccanica DP di base (epsilon, delta, clipping)
-//! - [`dp_trainer`]: orchestratore del training DP locale
-//! - [`adaptive_throttle`] + [`scheduler`]: runtime a tick con corsie
-//! - [`meta_observer`] + [`meta_brain`]: meta-livello (metriche, ADR)
-//! - [`snapshot_store`] + [`update_agent`]: snapshot/rollback e aggiornamenti
-//! - [`io_layer`]: interfaccia I/O con l’utente
-//! - [`net`]: rete per invio/recv dei delta federati
-//! - [`node_profile`]: rilevamento profilo macchina (HeavyGpu, HeavyCpu…)
+//! Ogni processo che esegue un nodo Samaritan Heavy/Core istanzia un [`NeuroNode`]
+//! e chiama ciclicamente [`NeuroNode::tick`] (direttamente o tramite
+//! [`crate::node::run_node`]).
 //!
-//! Questo file è l’orchestratore: coordina i moduli e definisce il ciclo
-//! di vita del NeuroNode (bootstrap + tick).
+//! # Panoramica
+//!
+//! ```text
+//! ┌───────────────────────────┐
+//! │        NeuroNode          │
+//! │ ┌───────────────────────┐ │
+//! │ │   NeuralEngine       │ │  inferenza modello
+//! │ └───────────────────────┘ │
+//! │ ┌───────────────────────┐ │
+//! │ │   PolicyCore         │ │  policy + safety
+//! │ └───────────────────────┘ │
+//! │ ┌───────────────────────┐ │
+//! │ │   FederatedState     │ │  DP-SGD + delta + SecAgg
+//! │ └───────────────────────┘ │
+//! │ ┌───────────────────────┐ │
+//! │ │   MetaObserver       │ │  metriche + eventi
+//! │ └───────────────────────┘ │
+//! │ ┌───────────────────────┐ │
+//! │ │   MetaBrain          │ │  ADR, distillazione
+//! │ └───────────────────────┘ │
+//! └───────────────────────────┘
+//! ```
 
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
@@ -36,351 +49,274 @@ use tokio::sync::RwLock;
 use tracing::{info, warn};
 use uuid::Uuid;
 
-/// Adaptive runtime throttle (PID + guardrail CPU/RAM).
-pub mod adaptive_throttle;
-/// Federated learning, DP-SGD, delta & secure aggregation.
-pub mod federated;
-/// User I/O (chat, voce, API locali).
-pub mod io_layer;
-/// Meta-livello decisionale (ADR, model slimming, ecc.).
-pub mod meta_brain;
-/// Metriche, detector, eventi meta.
-pub mod meta_observer;
-/// Networking (DeltaMessage, protocollo federato).
-pub mod net;
-/// Motore neurale (ONNX backend, ecc.).
-pub mod neural_engine;
-/// Rilevamento profilo macchina (HeavyGpu, HeavyCpu, Desktop, Edge…).
+/// Modulo per la rilevazione del profilo hardware del nodo (CPU, RAM, GPU).
 pub mod node_profile;
-/// Costituzione di sicurezza e privacy.
+/// Modulo che implementa il motore neurale (ONNX backend Heavy/Core).
+pub mod neural_engine;
+/// Modulo che contiene il core delle policy di sicurezza e governance.
 pub mod policy_core;
-/// Scheduler a priorità (Critical / Normal / Background).
+/// Modulo per I/O verso l'utente (chat, stream, ecc.).
+pub mod io_layer;
+/// Modulo per throttling adattivo basato su latenza / carico.
+pub mod adaptive_throttle;
+/// Modulo che implementa lo scheduler a priorità (critical/normal/background).
 pub mod scheduler;
-/// Snapshot, rollback, versioni modello.
+/// Modulo per Federated Learning con DP-SGD e Secure Aggregation.
+pub mod federated;
+/// Modulo di networking (client per invio/recezione delta).
+pub mod net;
+/// Modulo per osservabilità e metriche strutturate.
+pub mod meta_observer;
+/// Modulo per il meta-livello (ADR, distillazione, pruning, ecc.).
+pub mod meta_brain;
+/// Modulo per gestione snapshot del modello e rollback.
 pub mod snapshot_store;
-/// Aggiornamenti binari, manifest, firma.
+/// Modulo per gestione aggiornamenti binari (update agent).
 pub mod update_agent;
-/// Differential Privacy di base (config DP, engine, accountant).
-pub mod differential_privacy;
-/// Trainer locale DP-SGD che usa il motore neurale e la DP.
-pub mod dp_trainer;
+/// Modulo di glue per configurazione e loop di esecuzione del nodo.
+pub mod node;
 
 use adaptive_throttle::AdaptiveThrottle;
-use differential_privacy::DPConfig;
-use dp_trainer::DpTrainer;
-use federated::{FederatedState, FedRoundDecision};
+use federated::FederatedState;
 use io_layer::IOLayer;
 use meta_brain::MetaBrain;
-use meta_observer::{MetaObserver, TickMetrics};
+use meta_observer::MetaObserver;
 use net::{DeltaMessage, NetClient};
 use neural_engine::{NeuralEngine, OnnxBackend};
 use node_profile::{NodeProfile, NodeProfileDetector};
 use policy_core::PolicyCore;
-use scheduler::{PriorityScheduler, ScheduledSet};
+use scheduler::PriorityScheduler;
 use snapshot_store::SnapshotStore;
 use update_agent::UpdateAgent;
 
-/// Identificativo unico e persistente del nodo (256 bit).
+/// Identificativo univoco di un nodo.
+///
+/// È un array di 32 byte derivato da un UUID v4 duplicato (16 + 16 byte),
+/// sufficiente per gli use-case di Samaritan 1.5.
 pub type NodeId = [u8; 32];
 
-/// Risultato di un singolo tick del NeuroNode.
+/// Tipo di risultato per un tick del [`NeuroNode`].
 pub type TickResult = Result<()>;
 
-/// Profilo di runtime del nodo, semplificato per l’orchestrazione.
+/// Struttura principale che rappresenta un cervello Samaritan locale.
 ///
-/// Qui esponiamo solo ciò che serve al `NeuroNode`. I dettagli vivono
-/// nei rispettivi moduli (`node_profile`, `adaptive_throttle`, ecc.).
-#[derive(Debug, Clone)]
-pub struct RuntimeConfig {
-    /// Configurazione DP di default per il trainer locale.
-    pub dp: DPConfig,
-    /// Numero di tick tra uno snapshot e l’altro (approx).
-    pub snapshot_interval_ticks: u64,
-    /// Numero di tick tra un controllo aggiornamenti e il successivo.
-    pub update_interval_ticks: u64,
-}
-
-impl Default for RuntimeConfig {
-    fn default() -> Self {
-        Self {
-            dp: DPConfig::moderate(),
-            snapshot_interval_ticks: 10_000,
-            update_interval_ticks: 50_000,
-        }
-    }
-}
-
-/// Struttura centrale del NeuroNode Heavy/Core.
-///
-/// Tutta la complessità è delegata ai moduli; qui coordiniamo:
-/// - corsie Critical / Normal / Background
-/// - DP Trainer + FederatedState
-/// - MetaObserver + MetaBrain
-/// - SnapshotStore + UpdateAgent
+/// Un [`NeuroNode`] incapsula:
+/// - modello neurale globale + adapter proprietario,
+/// - policy di sicurezza,
+/// - stato federato con DP,
+/// - layer di I/O verso l'utente,
+/// - meta-livello (observer + brain),
+/// - gestione snapshot e aggiornamenti.
 pub struct NeuroNode {
-    /// Identità unica del nodo.
+    /// Identificativo del nodo, persistente su disco.
     pub id: NodeId,
-    /// Profilo hardware/logico rilevato (HeavyGpu, HeavyCpu, …).
+    /// Profilo del nodo (HeavyGpu, HeavyCpu, Desktop, ecc.).
     pub profile: NodeProfile,
 
-    /// Costituzione di sicurezza e privacy.
-    policy_core: PolicyCore,
-    /// Meta-livello (ADR, model slimming, suggerimenti config).
-    meta_brain: MetaBrain,
-    /// Motore neurale (modello globale + adapter privato).
-    neural_engine: NeuralEngine<OnnxBackend>,
-    /// I/O utente (chat, voce, API locali).
-    io_layer: IOLayer,
+    /// Core delle policy (sicurezza, privacy, governance).
+    pub policy_core: PolicyCore,
+    /// Meta-brain (ADR, distillazione, pruning, ecc.).
+    pub meta_brain: MetaBrain,
+    /// Motore neurale principale basato su ONNX.
+    pub neural_engine: NeuralEngine<OnnxBackend>,
+    /// Strato di I/O verso l’utente (input/output chat, ecc.).
+    pub io_layer: IOLayer,
 
-    /// Throttle adattivo (PID + guardrail risorse).
-    adaptive_throttle: AdaptiveThrottle,
-    /// Scheduler a priorità (Critical / Normal / Background).
-    scheduler: PriorityScheduler,
+    /// Throttle adattivo basato su latenza / carico.
+    pub adaptive_throttle: AdaptiveThrottle,
+    /// Scheduler a priorità per le corsie di esecuzione.
+    pub scheduler: PriorityScheduler,
 
-    /// Stato federato (DP-SGD locale, delta, secure aggregation).
-    federated: Arc<RwLock<FederatedState>>,
-    /// Client di rete per comunicare delta & round info.
-    net_client: NetClient,
+    /// Stato federato (DP-SGD, delta, privacy accountant, ecc.).
+    pub federated: Arc<RwLock<FederatedState>>,
+    /// Client di rete per invio/recezione delta e messaggi.
+    pub net_client: NetClient,
 
-    /// Trainer locale DP-SGD (usa NeuralEngine + DPConfig).
-    dp_trainer: DpTrainer,
+    /// Store degli snapshot (modelli, adapter, metadati).
+    pub snapshot_store: SnapshotStore,
+    /// Meta-Observer per metriche e insight.
+    pub meta_observer: MetaObserver,
+    /// Agent per aggiornamenti binari (download, verifica, switch).
+    pub update_agent: UpdateAgent,
 
-    /// Snapshot e rollback del cervello locale.
-    snapshot_store: SnapshotStore,
-    /// Osservatore meta (metriche e detector).
-    meta_observer: MetaObserver,
-    /// Gestione aggiornamenti binari/manifest.
-    update_agent: UpdateAgent,
-
-    /// Config runtime (DP, intervalli snapshot/update).
-    runtime_cfg: RuntimeConfig,
-
-    /// Contatore di tick globali.
+    /// Contatore di tick eseguiti.
     pub tick_counter: u64,
-    /// Istante di bootstrap per calcolare uptime.
-    start_time: Instant,
+    /// Istant di avvio del nodo (per uptime).
+    pub start_time: Instant,
 }
 
 impl NeuroNode {
-    /// Bootstrap completo del nodo — crea o riprende uno stato esistente.
+    /// Bootstrappa un [`NeuroNode`] Heavy/Core a partire da:
     ///
-    /// Questo è il punto di ingresso principale per Heavy/Core:
-    /// - genera o carica un `NodeId` persistente,
-    /// - rileva il profilo macchina (`NodeProfileDetector`),
-    /// - carica il modello ONNX globale,
-    /// - inizializza PolicyCore, FederatedState, SnapshotStore, ecc.
+    /// - una directory dati (persistenza locale),
+    /// - un percorso a modello ONNX globale (teacher o student heavy),
+    /// - un profilo opzionale (se `None`, viene auto-rilevato).
+    ///
+    /// Questa funzione:
+    /// 1. carica o genera il `NodeId`,
+    /// 2. determina il [`NodeProfile`],
+    /// 3. carica il modello ONNX,
+    /// 4. inizializza tutti i sottosistemi.
     pub async fn bootstrap(
         data_dir: PathBuf,
         model_path: PathBuf,
         profile_override: Option<NodeProfile>,
-        runtime_cfg: Option<RuntimeConfig>,
     ) -> Result<Self> {
         let id = Self::load_or_create_node_id(&data_dir).await?;
         let profile = profile_override.unwrap_or_else(NodeProfileDetector::detect);
-        let runtime_cfg = runtime_cfg.unwrap_or_default();
 
         info!(
-            "Samaritan 1.5 NeuroNode Heavy/Core {} — profile: {:?}",
+            "Samaritan 1.5 NeuroNode {} — profile: {:?}",
             hex::encode(id),
             profile
         );
 
+        // In una versione futura, qui si potrà scegliere backend diverso
+        // in base a NodeProfile (es. GPU vs CPU).
         let backend = OnnxBackend::load(&model_path)
             .with_context(|| format!("Unable to load global ONNX model from {:?}", model_path))?;
-
-        let policy_core = PolicyCore::load_or_default(&data_dir).await?;
-        let neural_engine = NeuralEngine::new(backend);
-        let io_layer = IOLayer::new(data_dir.join("io")).await?;
-        let adaptive_throttle = AdaptiveThrottle::new(&profile);
-        let scheduler = PriorityScheduler::new();
-
-        let federated_state =
-            FederatedState::new(data_dir.join("federated"), &policy_core, &runtime_cfg.dp).await?;
-        let net_client = NetClient::new(id);
-
-        let dp_trainer = DpTrainer::new(runtime_cfg.dp);
-
-        let snapshot_store = SnapshotStore::open(data_dir.join("snapshots")).await?;
-        let meta_observer = MetaObserver::new(data_dir.join("metrics")).await?;
-        let meta_brain = MetaBrain::new(data_dir.join("meta")).await?;
-        let update_agent = UpdateAgent::new(data_dir.join("updates")).await?;
 
         Ok(Self {
             id,
             profile,
-            policy_core,
-            meta_brain,
-            neural_engine,
-            io_layer,
-            adaptive_throttle,
-            scheduler,
-            federated: Arc::new(RwLock::new(federated_state)),
-            net_client,
-            dp_trainer,
-            snapshot_store,
-            meta_observer,
-            update_agent,
-            runtime_cfg,
+
+            policy_core: PolicyCore::load_or_default(&data_dir).await?,
+            meta_brain: MetaBrain::new(),
+            neural_engine: NeuralEngine::new(backend),
+            io_layer: IOLayer::new(data_dir.join("io")).await?,
+
+            adaptive_throttle: AdaptiveThrottle::new(),
+            scheduler: PriorityScheduler::new(),
+
+            federated: Arc::new(RwLock::new(
+                FederatedState::new(data_dir.join("federated")).await?,
+            )),
+            net_client: NetClient::new(id),
+
+            snapshot_store: SnapshotStore::open(data_dir.join("snapshots")).await?,
+            meta_observer: MetaObserver::new(),
+            update_agent: UpdateAgent::new(data_dir.join("updates")),
+
             tick_counter: 0,
             start_time: Instant::now(),
         })
     }
 
-    /// Carica o genera un NodeId persistente su disco.
+    /// Carica un `NodeId` persistito, oppure ne crea uno nuovo se assente.
+    ///
+    /// Il file è salvato in `data_dir/node_id.bin` ed è un array di 32 byte.
     async fn load_or_create_node_id(data_dir: &Path) -> Result<NodeId> {
         let id_path = data_dir.join("node_id.bin");
 
         if id_path.exists() {
-            let bytes = tokio::fs::read(&id_path).await?;
-            let array: [u8; 32] = bytes
+            let bytes = tokio::fs::read(&id_path)
+                .await
+                .with_context(|| format!("Unable to read node id from {:?}", id_path))?;
+
+            bytes
                 .try_into()
-                .map_err(|_| anyhow!("NodeId corrupted or invalid size"))?;
-            Ok(array)
+                .map_err(|_| anyhow!("NodeId corrupted or wrong size (expected 32 bytes)"))
         } else {
             let uuid = Uuid::new_v4();
-            let bytes = uuid.into_bytes();
-            let mut array = [0u8; 32];
+            let bytes = uuid.into_bytes(); // 16 bytes
+            let mut array = [0_u8; 32];
+            // duplico il UUID nei 32 byte
             array[0..16].copy_from_slice(&bytes);
             array[16..32].copy_from_slice(&bytes);
 
-            tokio::fs::create_dir_all(data_dir).await?;
-            tokio::fs::write(&id_path, &array).await?;
+            tokio::fs::create_dir_all(data_dir)
+                .await
+                .with_context(|| format!("Unable to create data dir {:?}", data_dir))?;
+            tokio::fs::write(&id_path, &array)
+                .await
+                .with_context(|| format!("Unable to persist node id to {:?}", id_path))?;
+
             Ok(array)
         }
     }
 
-    /// Tick principale del NeuroNode — runtime a corsie.
+    /// Esegue **un singolo tick** del cervello locale.
     ///
-    /// Ogni tick:
-    /// 1. aggiorna `AdaptiveThrottle` in base al profilo e alle metriche,
-    /// 2. costruisce uno [`ScheduledSet`] dal [`PriorityScheduler`],
-    /// 3. esegue:
-    ///    - corsia Critical (sempre, no-compromise UX),
-    ///    - corsia Normal (se risorse OK),
-    ///    - corsia Background (se consentito dal throttle),
-    /// 4. aggiorna metriche e le manda al [`MetaObserver`].
+    /// Questo metodo è pensato per essere invocato in un loop (vedi
+    /// [`crate::node::run_node`]) e implementa:
+    ///
+    /// - **corsia critical**: gestione input utente + inferenza + policy;
+    /// - **corsia background**: training federato DP, meta-observer,
+    ///   snapshot, aggiornamenti binari;
+    /// - aggiornamento di `AdaptiveThrottle` e metriche.
     pub async fn tick(&mut self) -> TickResult {
-        let tick_start = Instant::now();
-
-        // 1) Aggiorna throttle in base al profilo (CPU/GPU/RAM letti internamente).
+        // Aggiorna il throttle in base al profilo (in futuro: anche system load).
         self.adaptive_throttle.update(&self.profile);
 
-        // 2) Chiedi al scheduler cosa deve essere processato in questo tick.
-        let scheduled: ScheduledSet = self.scheduler.schedule_tick(
-            self.tick_counter,
-            self.adaptive_throttle.current_level(),
-        );
-
-        // ====================== CRITICAL LANE ======================
-        //
-        // I/O utente, inferenza neurale, PolicyCore. Nessun training qui.
-        //
-        if scheduled.has_critical() {
-            if let Some(user_input) = self.io_layer.try_recv_user_input() {
-                let model_inputs = self.io_layer.prepare_model_inputs(user_input)?;
-                let raw_output = self.neural_engine.infer(&model_inputs).await?;
-                let decision = self.policy_core.evaluate(&raw_output)?;
-                self.io_layer.deliver_to_user(decision).await?;
-            }
+        // ────────────────────────────────────────────────────────────────
+        // CORSIA CRITICAL — I/O utente + inferenza + policy
+        // ────────────────────────────────────────────────────────────────
+        if let Some(user_input) = self.io_layer.try_recv_user_input() {
+            // Prepara gli input per il modello neurale.
+            let model_inputs = self.io_layer.prepare_model_inputs(user_input)?;
+            // Inferenzia con il motore neurale (bloccante per la corsia critical).
+            let raw_output = self.neural_engine.infer(&model_inputs).await?;
+            // Applica le policy di sicurezza / governance.
+            let decision = self.policy_core.evaluate(&raw_output)?;
+            // Consegna la risposta all’utente.
+            self.io_layer.deliver_to_user(decision).await?;
         }
 
-        // ====================== NORMAL LANE ========================
-        //
-        // Task di servizio importanti ma non real-time (es. flush cache, I/O secondario).
-        //
-        if scheduled.has_normal() {
-            // Qui puoi aggiungere task Normal (log flush, housekeeping, ecc.).
-            // L’implementazione reale vive nei moduli specifici; il core non
-            // introduce logica ad-hoc per restare pulito.
-        }
-
-        // ====================== BACKGROUND LANE ====================
-        //
-        // Training locale DP-SGD, federated, meta-brain, snapshot, update check.
-        //
-        if scheduled.has_background() && self.adaptive_throttle.allow_background() {
+        // ────────────────────────────────────────────────────────────────
+        // CORSIA BACKGROUND — training, meta, snapshot, update
+        // ────────────────────────────────────────────────────────────────
+        if self.adaptive_throttle.allow_background() {
             let intensity = self.adaptive_throttle.current_intensity();
 
-            // Federated & DP Trainer: solo su nodi Heavy.
+            // Scheduling a livello concettuale: qui potremmo chiedere al
+            // PriorityScheduler quali "neuroni / moduli" eseguire.
+            let _scheduled = self.scheduler.schedule_tick(self.tick_counter);
+
+            // 1) Federated training locale (solo nodi Heavy / Desktop forti)
             if self.profile.is_heavy() {
                 let mut fed = self.federated.write().await;
-
-                // Chiedi al FederatedState se ha senso fare un round DP locale ora.
-                match fed.decide_round(&self.policy_core)? {
-                    FedRoundDecision::Skip => {
-                        // Nessun training in questo tick.
-                    }
-                    FedRoundDecision::TrainLocal { max_steps } => {
-                        // Esegui DP-SGD locale tramite DpTrainer.
-                        self.dp_trainer
-                            .run_local_round(
-                                &mut self.neural_engine,
-                                &mut *fed,
-                                &self.policy_core,
-                                intensity,
-                                max_steps,
-                            )
-                            .await?;
-
-                        if fed.should_submit_delta() {
-                            let delta: DeltaMessage = fed.compute_and_package_delta().await?;
-                            // Invio best-effort, errori loggati ma non fatali.
-                            if let Err(e) = self.net_client.submit_delta(delta).await {
-                                warn!("Failed to submit federated delta: {e:?}");
-                            }
+                if fed.is_training_enabled().await? {
+                    fed.run_local_epoch(intensity).await?;
+                    if fed.should_submit_delta() {
+                        let delta: DeltaMessage = fed.compute_and_package_delta().await?;
+                        // La failure di rete non è fatale per il tick.
+                        if let Err(err) = self.net_client.submit_delta(delta).await {
+                            warn!("NetClient.submit_delta failed: {err:?}");
                         }
-                    }
-                    FedRoundDecision::TrainingBlocked { reason } => {
-                        warn!("Local DP training blocked by PolicyCore: {reason}");
                     }
                 }
             }
 
-            // Meta-observer: metriche e detector (solo Heavy).
+            // 2) Meta-observer (metriche di inferenza / training)
             if self.profile.is_heavy() {
-                self.meta_observer
-                    .sample_engine(&self.neural_engine)
-                    .await?;
+                self.meta_observer.sample(&self.neural_engine).await;
             }
 
-            // Snapshot periodici del modello e stato.
-            if self.tick_counter % self.runtime_cfg.snapshot_interval_ticks == 0 {
-                self.snapshot_store
-                    .create_snapshot(&self.neural_engine)
-                    .await?;
+            // 3) Snapshot periodici del modello
+            if self.tick_counter % 10_000 == 0 {
+                self.snapshot_store.create_snapshot(&self.neural_engine).await?;
             }
 
-            // Update agent: controllo aggiornamenti binari/manifest.
-            if self.tick_counter % self.runtime_cfg.update_interval_ticks == 0 {
+            // 4) Controllo aggiornamenti binari
+            if self.tick_counter % 50_000 == 0 {
                 if let Err(e) = self.update_agent.check_for_updates().await {
                     warn!("UpdateAgent error: {e:?}");
                 }
             }
         }
 
-        self.tick_counter += 1;
-
-        // ====================== META-OBSERVATION ===================
-        let tick_duration = tick_start.elapsed();
-
-        let metrics = TickMetrics {
-            tick: self.tick_counter,
-            duration: tick_duration,
-            throttle_level: self.adaptive_throttle.current_level(),
-            background_intensity: self.adaptive_throttle.current_intensity(),
-            profile: self.profile,
-        };
-
-        self.meta_observer.on_tick_end(&metrics).await?;
+        // ────────────────────────────────────────────────────────────────
+        // Accounting interno e logging di stato
+        // ────────────────────────────────────────────────────────────────
+        self.tick_counter = self.tick_counter.wrapping_add(1);
 
         if self.tick_counter % 5_000 == 0 {
             info!(
-                "Tick {:>10} │ uptime {:>8.0?} │ {:?} │ throttle {:?} (bg {:.2})",
+                "Tick {:>10} │ uptime {:>8.0?} │ {:?} │ throttle {:?}",
                 self.tick_counter,
                 self.start_time.elapsed(),
                 self.profile,
-                self.adaptive_throttle.current_level(),
-                self.adaptive_throttle.current_intensity()
+                self.adaptive_throttle.current_level()
             );
         }
 
