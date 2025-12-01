@@ -37,21 +37,28 @@ This is a Cargo workspace with two members:
 
 ```text
 Samaritan/
-├── Cargo.toml                # workspace
-├── samaritan-core-lite/      # core library
-│   ├── Cargo.toml
-│   └── src/
-│       ├── lib.rs
-│       ├── neural_engine_lite.rs
-│       ├── policy_core.rs
-│       └── meta_observer.rs
-└── lite-node-demo/           # demo binary
+├── Cargo.toml          ← Workspace root
+├── README.md
+└── core/               ← Crate samaritan-core (Heavy/Core)
     ├── Cargo.toml
+    ├── README.md
     └── src/
-        ├── main.rs
-        ├── simple_node.rs
-        ├── policy_core.rs
-        └── meta_observer_lite.rs
+        ├── lib.rs                    ← Entry point principale
+        │
+        ├── node_profile.rs           ✅ PRODUCTION-READY (12 tests)
+        ├── adaptive_throttle.rs      ✅ PRODUCTION-READY (15 tests)  
+        ├── scheduler.rs              ✅ PRODUCTION-READY (14 tests)
+        │
+        ├── io_layer.rs               🚧 STUB
+        ├── neural_engine.rs          🚧 STUB
+        ├── policy_core.rs            🚧 STUB
+        ├── federated.rs              🚧 STUB
+        ├── net.rs                    🚧 STUB
+        ├── meta_observer.rs          🚧 STUB
+        ├── meta_brain.rs             🚧 STUB
+        ├── snapshot_store.rs         🚧 STUB
+        ├── update_agent.rs           🚧 STUB
+        └── node.rs                   🚧 STUB (config + bootstrap)
 
 samaritan-core-lite (library)
 
