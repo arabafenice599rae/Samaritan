@@ -2,8 +2,8 @@
 resolver = "2"
 
 members = [
-    "samaritan-core-lite",
-    "lite-node-demo",
+    "samaritan-core",
+    "node",
     "core",                 # nuovo crate Heavy/Core
 ]
 
